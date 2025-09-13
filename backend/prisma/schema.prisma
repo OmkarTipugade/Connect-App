@@ -1,0 +1,105 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+model User {
+  id              Int       @id @default(autoincrement())
+  username        String?   
+  phone           String?   @unique
+  phoneSuffix     String?
+  email           String?    @unique
+  otp             String?    
+  otpExpiry       DateTime?  
+  emailOtp        String?
+  emailOtpExpiry  DateTime?
+  profilePicture  String?
+  about           String    @default("")
+  lastSeen        DateTime?
+  isOnline        Boolean   @default(false)
+  isVerified      Boolean?   @default(false)
+  agrred          Boolean   @default(false) 
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // relations
+  sentMessages     Message[]    @relation("SentMessages")
+  receivedMessages Message[]    @relation("ReceivedMessages")
+  conversations    Conversation[]
+  reactions        Reaction[]
+}
+
+
+model Reaction {
+  id        Int     @id @default(autoincrement())
+  emoji     String
+  user      User    @relation(fields: [userId], references: [id])
+  userId    Int
+  message   Message @relation(fields: [messageId], references: [id])
+  messageId Int
+}
+
+model Conversation {
+  id          Int        @id @default(autoincrement())
+  members     User[]     // many-to-many relation
+
+  lastMsg     Message?   @relation("LastMessage", fields: [lastMsgId], references: [id])
+  lastMsgId   Int?  @unique
+
+  unreadCount Int        @default(0)
+
+  messages    Message[]  @relation("ConversationMessages") // all messages in this conversation
+
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model Message {
+  id            Int          @id @default(autoincrement())
+  
+  conversation  Conversation @relation("ConversationMessages", fields: [conversationId], references: [id])
+  conversationId Int
+
+  sender        User         @relation("SentMessages", fields: [senderId], references: [id])
+  senderId      Int
+
+  receiver      User         @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  receiverId    Int
+
+  content       String?
+  imageUrl      String?
+
+  contentType   ContentType   @default(TEXT)
+  messageStatus MessageStatus @default(SENT)
+
+  reactions     Reaction[]
+
+  lastMessageOf Conversation? @relation("LastMessage") // optional back-relation
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+
+enum ContentType {
+  TEXT
+  IMAGE
+  VIDEO
+}
+
+enum MessageStatus {
+  SENT
+  DELIVERED
+  READ
+}
