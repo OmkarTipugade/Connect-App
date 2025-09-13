@@ -76,14 +76,12 @@ model Message {
 
   receiver      User         @relation("ReceivedMessages", fields: [receiverId], references: [id])
   receiverId    Int
-
+  imageOrVideoUrl String?
   content       String?
-  imageUrl      String?
-
   contentType   ContentType   @default(TEXT)
   messageStatus MessageStatus @default(SENT)
 
-  reactions     Reaction[]
+  reactions     Reaction[]    
 
   lastMessageOf Conversation? @relation("LastMessage") // optional back-relation
 

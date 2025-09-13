@@ -93,13 +93,13 @@ const verifyOtp = async (req, res) => {
 
       if (!user) return response(res, 404, "User not found");
       if (user.emailOtp !== otp) return response(res, 400, "Invalid OTP");
-      if (user.emailOtpExpiry < new Date()) return response(res, 400, "OTP expired");
+      if (user.emailOtpExpiry < new Date())
+        return response(res, 400, "OTP expired");
 
       user = await prisma.user.update({
         where: { id: user.id },
         data: { isVerified: true, emailOtp: null, emailOtpExpiry: null },
       });
-
     } else {
       // ---------------- PHONE VERIFICATION ----------------
       if (!phone || !phoneSuffix) {
@@ -142,45 +142,45 @@ const verifyOtp = async (req, res) => {
 };
 
 const updateProfile = async (req, res) => {
-  const {username, about, agreed} = req.body;
+  const { username, about, agreed } = req.body;
   const userId = req.user.userId || req.user?.userID;
 
   try {
     const user = await prisma.user.findUnique({
-      where: {id: userId}
+      where: { id: userId },
     });
     const file = req.file;
 
-    if(!user) {
+    if (!user) {
       return response(res, 404, "User not found");
     }
 
-    if(file) {
+    if (file) {
       const profilePictureUrl = uploadFileToCloudinary(file);
       console.log(profilePictureUrl);
       user.profilePicture = profilePictureUrl?.secure_url;
     } else if (req.body.profilePicture) {
       user.profilePicture = req.body.profilePicture;
-    } 
-    if(username) user.username = username;
-    if(about) user.about = about;
-    if(agreed) user.agreed = agreed;
+    }
+    if (username) user.username = username;
+    if (about) user.about = about;
+    if (agreed) user.agreed = agreed;
 
     await prisma.user.update({
-      where: {id: userId},
+      where: { id: userId },
       data: {
         username: user.username,
         about: user.about,
         profilePicture: user.profilePicture,
-        agreed: user.agreed
-      }
+        agreed: user.agreed,
+      },
     });
-    return response(res, 200, "Profile updated", {user});
+    return response(res, 200, "Profile updated", { user });
   } catch (error) {
     console.error("Error in updateProfile:", error);
     return response(res, 500, "Internal Server Error");
   }
-}
+};
 
 const logout = (req, res) => {
   try {
@@ -190,26 +190,105 @@ const logout = (req, res) => {
     console.error("Error in logout:", error);
     return response(res, 500, "Internal Server Error");
   }
-}
+};
 
-const checkAuthentication = async(req, res) => {
+const checkAuthentication = async (req, res) => {
   const userId = req.user.userId || req.user?.userID;
-  if(!userId) {
+  if (!userId) {
     return response(res, 401, "Unauthorized");
   }
   try {
     const user = await prisma.user.findUnique({
-      where: {id: userId}
+      where: { id: userId },
     });
 
-    if(!user) {
+    if (!user) {
       return response(res, 404, "User not found");
     }
 
-    return response(res, 200, "User is authenticated", {user});
+    return response(res, 200, "User is authenticated", { user });
   } catch (error) {
     console.error("Error in checkAuthentication:", error);
     return response(res, 500, "Internal Server Error");
   }
-}
-module.exports = { sendOtp, verifyOtp, updateProfile, logout, checkAuthentication };
+};
+
+const getAllUsers = async (req, res) => {
+  const loggedInUser = req.user.userId || req.user?.userID;
+
+  try {
+    // 1. Get all users except logged-in user
+    const users = await prisma.user.findMany({
+      where: {
+        id: { not: loggedInUser },
+      },
+      select: {
+        id: true,
+        username: true,
+        profilePicture: true,
+        lastSeen: true,
+        isOnline: true,
+        about: true,
+        phone: true,
+        phoneSuffix: true,
+      },
+    });
+
+    // 2. Attach conversations (if exists) for each user
+    const usersWithConversation = await Promise.all(
+      users.map(async (user) => {
+        const conversation = await prisma.conversation.findFirst({
+          where: {
+            members: {
+              some: { id: loggedInUser },
+            },
+            AND: {
+              members: {
+                some: { id: user.id },
+              },
+            },
+          },
+          include: {
+            messages: {
+              orderBy: { createdAt: "desc" },
+              take: 1,
+              select: {
+                id: true,
+                content: true,
+                createdAt: true,
+                sender: true,
+                receiver: true,
+              },
+            },
+          },
+        });
+
+        return {
+          ...user,
+          conversation: conversation
+            ? {
+                ...conversation,
+                lastMessage: conversation.messages[0] || null,
+              }
+            : null,
+        };
+      })
+    );
+
+    return response(res, 200, "Users fetched successfully", {
+      users: usersWithConversation,
+    });
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    return response(res, 500, "Internal Server Error");
+  }
+};
+
+module.exports = {
+  sendOtp,
+  verifyOtp,
+  updateProfile,
+  logout,
+  checkAuthentication,
+  getAllUsers,
+};

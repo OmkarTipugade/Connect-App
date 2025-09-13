@@ -1,9 +1,9 @@
-const express = require('express');
-const cors = require('cors');
-const dotenv = require('dotenv');
-const cookieParser = require('cookie-parser');
-const { PrismaClient } = require('@prisma/client');
-const bodyParser = require('body-parser');
+const express = require("express");
+const cors = require("cors");
+const dotenv = require("dotenv");
+const cookieParser = require("cookie-parser");
+const { PrismaClient } = require("@prisma/client");
+const bodyParser = require("body-parser");
 
 dotenv.config();
 
@@ -13,15 +13,16 @@ const prisma = new PrismaClient();
 app.use(cors());
 app.use(express.json());
 app.use(cookieParser());
-app.use(bodyParser.urlencoded({ extended: true })); 
+app.use(bodyParser.urlencoded({ extended: true }));
 
 //routes
-app.use('/api/auth', require('./routes/auth.route'));
+app.use("/api/auth", require("./routes/auth.route"));
+app.use("/api/chat", require("./routes/chat.route"));
 
 const PORT = process.env.PORT;
 
-app.get('/', (req, res) => {
-  res.send('Hello from the backend!');
+app.get("/", (req, res) => {
+  res.send("Hello from the backend!");
 });
 
 app.listen(PORT, () => {
