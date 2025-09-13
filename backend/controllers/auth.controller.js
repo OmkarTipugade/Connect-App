@@ -6,10 +6,11 @@ const { generateOTP } = require("../utils/otpGenerator");
 const { response } = require("../utils/responseHandler");
 const { generateToken } = require("../utils/tokenGenerator");
 const { verifyOtpForPhoneNo } = require("../services/twilio.service");
+const { uploadFileToCloudinary } = require("../config/cloudinary.config");
 const prisma = new PrismaClient();
 
 const sendOtp = async (req, res) => {
-  const { phone, phoneSuffix, email, username } = req.body;
+  const { phone, phoneSuffix, email } = req.body;
   const otp = generateOTP();
   const expiry = Date.now() + 5 * 60 * 1000;
 
@@ -29,7 +30,6 @@ const sendOtp = async (req, res) => {
           data: {
             emailOtp: otp,
             emailOtpExpiry: new Date(expiry),
-            username: username,
           },
         });
       } else {
@@ -38,7 +38,6 @@ const sendOtp = async (req, res) => {
             email,
             emailOtp: otp,
             emailOtpExpiry: new Date(expiry),
-            username: username,
           },
         });
       }
@@ -61,7 +60,7 @@ const sendOtp = async (req, res) => {
     if (user) {
       user = await prisma.user.update({
         where: { phone: fullPhone },
-        data: { otp, otpExpiry: new Date(expiry), username: username },
+        data: { otp, otpExpiry: new Date(expiry) },
       });
     } else {
       user = await prisma.user.create({
@@ -69,7 +68,6 @@ const sendOtp = async (req, res) => {
           phone: fullPhone,
           otp,
           otpExpiry: new Date(expiry),
-          username: username,
         },
       });
     }
@@ -143,4 +141,44 @@ const verifyOtp = async (req, res) => {
   }
 };
 
-module.exports = { sendOtp, verifyOtp };
+const updateProfile = async (req, res) => {
+  const {username, about, agreed} = req.body;
+  const userId = req.user.userId || req.user?.userID;
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: {id: userId}
+    });
+    const file = req.file;
+
+    if(!user) {
+      return response(res, 404, "User not found");
+    }
+
+    if(file) {
+      const profilePictureUrl = uploadFileToCloudinary(file);
+      console.log(profilePictureUrl);
+      user.profilePicture = profilePictureUrl?.secure_url;
+    } else if (req.body.profilePicture) {
+      user.profilePicture = req.body.profilePicture;
+    } 
+    if(username) user.username = username;
+    if(about) user.about = about;
+    if(agreed) user.agreed = agreed;
+    
+    await prisma.user.update({
+      where: {id: userId},
+      data: {
+        username: user.username,
+        about: user.about,
+        profilePicture: user.profilePicture,
+        agreed: user.agreed
+      }
+    });
+    return response(res, 200, "Profile updated", {user});
+  } catch (error) {
+    console.error("Error in updateProfile:", error);
+    return response(res, 500, "Internal Server Error");
+  }
+}
+module.exports = { sendOtp, verifyOtp, updateProfile };
