@@ -165,7 +165,7 @@ const updateProfile = async (req, res) => {
     if(username) user.username = username;
     if(about) user.about = about;
     if(agreed) user.agreed = agreed;
-    
+
     await prisma.user.update({
       where: {id: userId},
       data: {
@@ -181,4 +181,35 @@ const updateProfile = async (req, res) => {
     return response(res, 500, "Internal Server Error");
   }
 }
-module.exports = { sendOtp, verifyOtp, updateProfile };
+
+const logout = (req, res) => {
+  try {
+    res.cookie("auth_token", "", { expires: new Date(0) });
+    return response(res, 200, "Logged out successfully");
+  } catch (error) {
+    console.error("Error in logout:", error);
+    return response(res, 500, "Internal Server Error");
+  }
+}
+
+const checkAuthentication = async(req, res) => {
+  const userId = req.user.userId || req.user?.userID;
+  if(!userId) {
+    return response(res, 401, "Unauthorized");
+  }
+  try {
+    const user = await prisma.user.findUnique({
+      where: {id: userId}
+    });
+
+    if(!user) {
+      return response(res, 404, "User not found");
+    }
+
+    return response(res, 200, "User is authenticated", {user});
+  } catch (error) {
+    console.error("Error in checkAuthentication:", error);
+    return response(res, 500, "Internal Server Error");
+  }
+}
+module.exports = { sendOtp, verifyOtp, updateProfile, logout, checkAuthentication };
