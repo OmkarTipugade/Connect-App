@@ -12,7 +12,7 @@ dotenv.config();
 const app = express();
 const prisma = new PrismaClient();
 const corsOptions = {
-  origin: process.env.FRONTEND_URL,
+  origin: process.env.FRONTED_URL,
   credentials: true,
 }
 
