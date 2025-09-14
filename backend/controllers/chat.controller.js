@@ -1,6 +1,7 @@
 const { uploadFileToCloudinary } = require("../config/cloudinary.config");
 const { PrismaClient } = require("@prisma/client");
 const { response } = require("../utils/responseHandler");
+const { actions } = require("../utils/actions");
 const prisma = new PrismaClient();
 
 const sendMessage = async (req, res) => {
@@ -126,6 +127,20 @@ const sendMessage = async (req, res) => {
       },
     });
 
+    if(req.io && req.socketUserMap){
+        const receiverSocketId = req.socketUserMap.get(receiverId);
+        if (receiverSocketId) {
+          req.io.to(receiverSocketId).emit(actions.RECEIVE_MESSAGE, {
+            message: populatedMessage,
+            conversationId: conversation.id,
+          });
+          message.messageStatus ="DELIVERED";
+            await prisma.message.update({
+                where: { id: message.id },
+                data: { messageStatus: "DELIVERED" },
+            });
+        }
+    }
     return response(res, 200, "Message sent successfully", {
       message: populatedMessage,
     });
@@ -244,13 +259,12 @@ const getMessagesOfSpecificChat = async (req, res) => {
 const markMessagesAsRead = async (req, res) => {
   const { messageIds } = req.body;
   const userId = req.user.userId || req.user?.userID;
-  console.log("messageIds", messageIds, userId);
 
   try {
     // Fetch messages to ensure they belong to the user and are unread
-    const messages = await prisma.message.findFirst({
+    const messages = await prisma.message.findMany({
       where: {
-        id: messageIds,
+        id: {in:messageIds},
         receiverId: userId,
         messageStatus: "SENT",
       },
@@ -261,9 +275,9 @@ const markMessagesAsRead = async (req, res) => {
     }
 
     // Update unread messages to READ
-    await prisma.message.update({
+    await prisma.message.updateMany({
       where: {
-        id: messageIds,
+        id: {in:messageIds},
         receiverId: userId,
       },
       data: {
@@ -271,6 +285,23 @@ const markMessagesAsRead = async (req, res) => {
         updatedAt: new Date(),
       },
     });
+
+    //notify to sender
+    if(req.io && req.socketUserMap){
+        for (const message of messages) {
+            const senderSocketId = req.socketUserMap.get(message.senderId);
+            if (senderSocketId) {
+              req.io.to(senderSocketId).emit(actions.MESSAGE_READ, {
+                messageId: message.id,
+                messageStatus: "READ",
+              });
+            }
+            await prisma.message.update({
+                where: { id: message.id },
+                data: { messageStatus: "READ"  },
+            })
+        }
+    }
 
     return response(res, 200, "Messages marked as read successfully", {
       messages,
@@ -287,7 +318,7 @@ const deleteMessage = async (req, res) => {
 
   try {
     const message = await prisma.message.findUnique({
-      where: { id: messageId },
+      where: { id: parseInt(messageId) },
     });
     if (!message) {
       return response(res, 404, "Message not found");
@@ -297,10 +328,18 @@ const deleteMessage = async (req, res) => {
     }
 
     await prisma.message.delete({
-      where: { id: messageId },
+      where: { id: parseInt(messageId) },
     });
 
-    return response(res, 200, "Message deleted successfully");
+    if(req.io && req.socketUserMap){
+        const receiverSocketId = req.socketUserMap.get(message.receiverId);
+        if (receiverSocketId) {
+          req.io.to(receiverSocketId).emit(actions.MESSAGE_DELETED, {
+            messageId: message.id,
+          });
+        }
+    }
+    return response(res, 200, "Message deleted successfully",{message});
   } catch (error) {
     console.error("Error in deleteMessage:", error);
     return response(res, 500, "Internal Server Error");
