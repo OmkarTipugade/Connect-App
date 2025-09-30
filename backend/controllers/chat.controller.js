@@ -205,7 +205,7 @@ const getConversation = async (req, res) => {
 
 const getMessagesOfSpecificChat = async (req, res) => {
   const { conversationId } = req.params;
-  const userId = req.user.userId || req.user?.userID;
+  const userId = req.user.userId;
   try {
     // 1. Check if conversation exists
     const conversation = await prisma.conversation.findUnique({
@@ -258,7 +258,7 @@ const getMessagesOfSpecificChat = async (req, res) => {
 
 const markMessagesAsRead = async (req, res) => {
   const { messageIds } = req.body;
-  const userId = req.user.userId || req.user?.userID;
+  const userId = req.user.userId;
 
   try {
     // Fetch messages to ensure they belong to the user and are unread
@@ -314,7 +314,7 @@ const markMessagesAsRead = async (req, res) => {
 
 const deleteMessage = async (req, res) => {
   const { messageId } = req.params;
-  const userId = req.user.userId || req.user?.userID;
+  const userId = req.user.userId;
 
   try {
     const message = await prisma.message.findUnique({

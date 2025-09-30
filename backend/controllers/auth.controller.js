@@ -106,7 +106,7 @@ const verifyOtp = async (req, res) => {
         return response(res, 400, "Phone and phoneSuffix are required");
       }
 
-      const fullPhone = `+${phoneSuffix}${phone}`;
+      const fullPhone = `${phoneSuffix}${phone}`;
 
       user = await prisma.user.findUnique({
         where: { phone: fullPhone },
@@ -143,7 +143,7 @@ const verifyOtp = async (req, res) => {
 
 const updateProfile = async (req, res) => {
   const { username, about, agreed } = req.body;
-  const userId = req.user.userId || req.user?.userID;
+  const userId = req.user.userId;
 
   try {
     const user = await prisma.user.findUnique({
@@ -193,7 +193,7 @@ const logout = (req, res) => {
 };
 
 const checkAuthentication = async (req, res) => {
-  const userId = req.user.userId || req.user?.userID;
+  const userId = req.user.userId ;
   if (!userId) {
     return response(res, 401, "Unauthorized");
   }
@@ -214,7 +214,7 @@ const checkAuthentication = async (req, res) => {
 };
 
 const getAllUsers = async (req, res) => {
-  const loggedInUser = req.user.userId || req.user?.userID;
+  const loggedInUser =  req.user.userId;
 
   try {
     // 1. Get all users except logged-in user

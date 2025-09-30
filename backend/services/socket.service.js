@@ -3,7 +3,7 @@ const { PrismaClient } = require("@prisma/client");
 const { actions } = require("../utils/actions");
 const prisma = new PrismaClient();
 
-require("dotenv").config();
+require("@dotenvx/dotenvx").config();
 // Map to store online users -> userId and their socket IDs
 const onlineUsers = new Map();
 
