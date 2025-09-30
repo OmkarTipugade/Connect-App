@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 const createStatus = async (req, res) => {
   try {
     const { content, contentType } = req.body;
-    const userId = req.userId;
+    const userId = req.user?.userID || req.user.userId;
     const file = req.file;
 
     let mediaUrl = null;
@@ -49,6 +49,7 @@ const createStatus = async (req, res) => {
       },
     });
 
+    // Fetch status with user info
     const populatedStatus = await prisma.status.findUnique({
       where: { id: status.id },
       include: {
@@ -58,7 +59,14 @@ const createStatus = async (req, res) => {
             username: true,
           },
         },
-        viewers: {
+      },
+    });
+
+    // Fetch viewers from StatusView
+    const viewers = await prisma.statusView.findMany({
+      where: { statusId: status.id },
+      select: {
+        user: {
           select: {
             id: true,
             username: true,
@@ -68,7 +76,10 @@ const createStatus = async (req, res) => {
     });
 
     return response(res, 200, "Status created successfully", {
-      status: populatedStatus,
+      status: {
+        ...populatedStatus,
+        viewedBy: viewers.map((v) => v.user),
+      },
     });
   } catch (error) {
     console.error("Error in createStatus:", error);
@@ -91,7 +102,7 @@ const getStatuses = async (req, res) => {
             profilePicture: true,
           },
         },
-        viewers: {
+        viewedBy: {
           select: {
             username: true,
             profilePicture: true,
@@ -113,79 +124,82 @@ const getStatuses = async (req, res) => {
 };
 
 const viewStatus = async (req, res) => {
-  const { statusId } = req.params;
-  const { userId } = req.body; // assuming you send userId in body
+  const { storyId } = req.params;
+  const userId = req.user?.userID || req.user?.userId;
+
+  if (!userId) {
+    return response(res, 400, "User ID is missing");
+  }
 
   try {
-    // 1. Find status
     const status = await prisma.status.findUnique({
-      where: { id: statusId },
-      include: {
-        viewers: { select: { id: true } },
-      },
+      where: { id: storyId },
     });
 
     if (!status) {
-      return res.status(404).json({ message: "Status not found" });
+      return response(res, 404, "Status not found");
     }
 
-    // 2. Check if user already viewed
-    const alreadyViewed = status.viewers.some((viewer) => viewer.id === userId);
+    // Check if the user already viewed this status
+    const alreadyViewed = await prisma.statusView.findFirst({
+      where: { statusId: storyId, userId: userId },
+    });
 
     if (!alreadyViewed) {
-      // 3. Add user to viewers
-      await prisma.status.update({
-        where: { id: statusId },
+      await prisma.statusView.create({
         data: {
-          viewers: {
-            connect: { id: userId }, // connect adds relation in Prisma
-          },
+          statusId: storyId,
+          userId: userId,
+          username: req.user?.username || null,
+          profilePicture: req.user?.profilePicture || null,
         },
       });
-    } else {
-      console.log("User already viewed the status");
     }
 
-    // 4. Refetch with populated relations
     const updatedStatus = await prisma.status.findUnique({
-      where: { id: statusId },
+      where: { id: storyId },
       include: {
-        user: {
-          select: { username: true, profilePicture: true },
-        },
-        viewers: {
-          select: { username: true, profilePicture: true },
-        },
+        user: { select: { username: true, profilePicture: true } },
+        viewedBy: { select: { username: true, profilePicture: true } },
       },
     });
 
-    return res.status(200).json({
-      message: "Status viewed successfully",
-      status: updatedStatus,
-    });
+    return response(res, 200, "Status viewed successfully", updatedStatus);
   } catch (error) {
+    console.error("Error in viewStatus:", error);
     return response(res, 500, "Internal server error");
   }
 };
 
 const deleteStatus = async (req, res) => {
-  const { statusId } = req.params;
-  const userId = req.user.userId;
+  const { storyId } = req.params;
+  const userId = req.user?.userId || req.user?.userID;
 
   try {
     const status = await prisma.status.findUnique({
       where: {
-        id: statusId,
+        id: storyId,
       },
     });
 
     if (!status) {
-      return response(res, 404, "Message not found");
+      return response(res, 404, "Status not found");
     }
+
     if (status.userId !== userId) {
       return response(res, 403, "Not authorized to delete status");
     }
+    await prisma.statusView.deleteMany({
+      where: { statusId: storyId },
+    });
+
+    await prisma.status.delete({
+      where: { id: storyId },
+    });
+
+    return response(res, 200, "Status deleted successfully");
   } catch (error) {
+    console.error("Error in deleteStatus:", error);
     return response(res, 500, "Internal server error");
   }
 };
@@ -193,5 +207,6 @@ const deleteStatus = async (req, res) => {
 module.exports = {
   createStatus,
   getStatuses,
-  deleteStatus, viewStatus
+  deleteStatus,
+  viewStatus,
 };

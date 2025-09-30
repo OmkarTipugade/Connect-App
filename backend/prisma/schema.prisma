@@ -14,7 +14,7 @@ datasource db {
 }
 
 model User {
-  id             Int       @id @default(autoincrement())
+  id             String       @id @default(cuid())
   username       String?
   phone          String?   @unique
   phoneSuffix    String?
@@ -37,25 +37,25 @@ model User {
   receivedMessages Message[]      @relation("ReceivedMessages")
   conversations    Conversation[]
   reactions        Reaction[]
-  Status           Status?
+  Status           Status[]
   StatusView       StatusView[]
 }
 
 model Reaction {
-  id        Int     @id @default(autoincrement())
+  id        String     @id @default(cuid())
   emoji     String
   user      User    @relation(fields: [userId], references: [id])
-  userId    Int
+  userId    String
   message   Message @relation(fields: [messageId], references: [id])
-  messageId Int
+  messageId String
 }
 
 model Conversation {
-  id      Int    @id @default(autoincrement())
+  id      String    @id @default(cuid())
   members User[] // many-to-many relation
 
   lastMsg   Message? @relation("LastMessage", fields: [lastMsgId], references: [id])
-  lastMsgId Int?     @unique
+  lastMsgId String?     @unique
 
   unreadCount Int @default(0)
 
@@ -66,16 +66,16 @@ model Conversation {
 }
 
 model Message {
-  id Int @id @default(autoincrement())
+  id String @id @default(cuid())
 
   conversation   Conversation @relation("ConversationMessages", fields: [conversationId], references: [id])
-  conversationId Int
+  conversationId String
 
   sender   User @relation("SentMessages", fields: [senderId], references: [id])
-  senderId Int
+  senderId String
 
   receiver        User          @relation("ReceivedMessages", fields: [receiverId], references: [id])
-  receiverId      Int
+  receiverId      String
   imageOrVideoUrl String?
   content         String?
   contentType     ContentType   @default(TEXT)
@@ -83,33 +83,39 @@ model Message {
 
   reactions Reaction[]
 
-  lastMessageOf Conversation? @relation("LastMessage") // optional back-relation
+  lastMessageOf Conversation? @relation("LastMessage") 
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model Status {
-  id        Int      @id @default(autoincrement())
-  user      User     @relation(fields: [userId], references: [id])
-  userId    Int      @unique
-  url       String?
-  content   String?
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String        @id @default(cuid())
+  user         User       @relation(fields: [userId], references: [id])
+  userId       String        
+  username     String?   
+  profilePicture String?  
+  url          String?
+  content      String?
+  contentType  ContentType @default(TEXT)
+  expiresAt    DateTime
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
-  viewedBy StatusView[]
+  viewedBy     StatusView[]
 }
 
 model StatusView {
-  id       Int      @id @default(autoincrement())
-  status   Status   @relation(fields: [statusId], references: [id])
-  statusId Int
-  user     User     @relation(fields: [userId], references: [id])
-  userId   Int
-  viewedAt DateTime @default(now())
+  id            String      @id @default(cuid())
+  status        Status   @relation(fields: [statusId], references: [id])
+  statusId      String
+  user          User     @relation(fields: [userId], references: [id])
+  userId        String
+  username      String?  
+  profilePicture String? 
+  viewedAt      DateTime @default(now())
 }
+
 
 enum ContentType {
   TEXT

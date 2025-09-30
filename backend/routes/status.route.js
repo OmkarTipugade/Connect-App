@@ -15,7 +15,7 @@ router.get(
   authMiddleware,
   getStatuses
 );
-router.put("/:storyId/view-story", authMiddleware, viewStatus);
+router.put("/:storyId/view", authMiddleware, viewStatus);
 router.delete("/:storyId", authMiddleware, deleteStatus);
 
 module.exports = router;

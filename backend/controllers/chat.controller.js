@@ -127,19 +127,19 @@ const sendMessage = async (req, res) => {
       },
     });
 
-    if(req.io && req.socketUserMap){
-        const receiverSocketId = req.socketUserMap.get(receiverId);
-        if (receiverSocketId) {
-          req.io.to(receiverSocketId).emit(actions.RECEIVE_MESSAGE, {
-            message: populatedMessage,
-            conversationId: conversation.id,
-          });
-          message.messageStatus ="DELIVERED";
-            await prisma.message.update({
-                where: { id: message.id },
-                data: { messageStatus: "DELIVERED" },
-            });
-        }
+    if (req.io && req.socketUserMap) {
+      const receiverSocketId = req.socketUserMap.get(receiverId);
+      if (receiverSocketId) {
+        req.io.to(receiverSocketId).emit(actions.RECEIVE_MESSAGE, {
+          message: populatedMessage,
+          conversationId: conversation.id,
+        });
+        message.messageStatus = "DELIVERED";
+        await prisma.message.update({
+          where: { id: message.id },
+          data: { messageStatus: "DELIVERED" },
+        });
+      }
     }
     return response(res, 200, "Message sent successfully", {
       message: populatedMessage,
@@ -151,7 +151,7 @@ const sendMessage = async (req, res) => {
 };
 
 const getConversation = async (req, res) => {
-  const userId = req.user.userId;
+  const userId = req.user?.userID || req.user.userId;
 
   try {
     const conversations = await prisma.conversation.findMany({
@@ -205,11 +205,11 @@ const getConversation = async (req, res) => {
 
 const getMessagesOfSpecificChat = async (req, res) => {
   const { conversationId } = req.params;
-  const userId = req.user.userId;
+  const userId = req.user?.userID || req.user.userId;
   try {
     // 1. Check if conversation exists
     const conversation = await prisma.conversation.findUnique({
-      where: { id: parseInt(conversationId) },
+      where: { id: conversationId },
       include: { members: true },
     });
 
@@ -225,7 +225,7 @@ const getMessagesOfSpecificChat = async (req, res) => {
 
     // 3. Fetch all messages for this conversation
     const messages = await prisma.message.findMany({
-      where: { conversationId: parseInt(conversationId) },
+      where: { conversationId: conversationId },
       include: {
         sender: { select: { id: true, username: true, profilePicture: true } },
         receiver: {
@@ -239,7 +239,7 @@ const getMessagesOfSpecificChat = async (req, res) => {
     // 4. Mark user’s received messages as READ
     await prisma.message.updateMany({
       where: {
-        conversationId: parseInt(conversationId),
+        conversationId: conversationId,
         receiverId: userId,
         messageStatus: { in: ["SENT", "DELIVERED"] },
       },
@@ -258,13 +258,13 @@ const getMessagesOfSpecificChat = async (req, res) => {
 
 const markMessagesAsRead = async (req, res) => {
   const { messageIds } = req.body;
-  const userId = req.user.userId;
+  const userId = req.user?.userID || req.user.userId;
 
   try {
     // Fetch messages to ensure they belong to the user and are unread
     const messages = await prisma.message.findMany({
       where: {
-        id: {in:messageIds},
+        id: { in: messageIds },
         receiverId: userId,
         messageStatus: "SENT",
       },
@@ -277,7 +277,7 @@ const markMessagesAsRead = async (req, res) => {
     // Update unread messages to READ
     await prisma.message.updateMany({
       where: {
-        id: {in:messageIds},
+        id: { in: messageIds },
         receiverId: userId,
       },
       data: {
@@ -287,20 +287,20 @@ const markMessagesAsRead = async (req, res) => {
     });
 
     //notify to sender
-    if(req.io && req.socketUserMap){
-        for (const message of messages) {
-            const senderSocketId = req.socketUserMap.get(message.senderId);
-            if (senderSocketId) {
-              req.io.to(senderSocketId).emit(actions.MESSAGE_READ, {
-                messageId: message.id,
-                messageStatus: "READ",
-              });
-            }
-            await prisma.message.update({
-                where: { id: message.id },
-                data: { messageStatus: "READ"  },
-            })
+    if (req.io && req.socketUserMap) {
+      for (const message of messages) {
+        const senderSocketId = req.socketUserMap.get(message.senderId);
+        if (senderSocketId) {
+          req.io.to(senderSocketId).emit(actions.MESSAGE_READ, {
+            messageId: message.id,
+            messageStatus: "READ",
+          });
         }
+        await prisma.message.update({
+          where: { id: message.id },
+          data: { messageStatus: "READ" },
+        });
+      }
     }
 
     return response(res, 200, "Messages marked as read successfully", {
@@ -314,11 +314,11 @@ const markMessagesAsRead = async (req, res) => {
 
 const deleteMessage = async (req, res) => {
   const { messageId } = req.params;
-  const userId = req.user.userId;
+  const userId = req.user?.userID || req.user.userId;
 
   try {
     const message = await prisma.message.findUnique({
-      where: { id: parseInt(messageId) },
+      where: { id: messageId },
     });
     if (!message) {
       return response(res, 404, "Message not found");
@@ -328,18 +328,18 @@ const deleteMessage = async (req, res) => {
     }
 
     await prisma.message.delete({
-      where: { id: parseInt(messageId) },
+      where: { id: messageId },
     });
 
-    if(req.io && req.socketUserMap){
-        const receiverSocketId = req.socketUserMap.get(message.receiverId);
-        if (receiverSocketId) {
-          req.io.to(receiverSocketId).emit(actions.MESSAGE_DELETED, {
-            messageId: message.id,
-          });
-        }
+    if (req.io && req.socketUserMap) {
+      const receiverSocketId = req.socketUserMap.get(message.receiverId);
+      if (receiverSocketId) {
+        req.io.to(receiverSocketId).emit(actions.MESSAGE_DELETED, {
+          messageId: message.id,
+        });
+      }
     }
-    return response(res, 200, "Message deleted successfully",{message});
+    return response(res, 200, "Message deleted successfully", { message });
   } catch (error) {
     console.error("Error in deleteMessage:", error);
     return response(res, 500, "Internal Server Error");

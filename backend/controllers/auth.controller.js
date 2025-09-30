@@ -21,8 +21,6 @@ const sendOtp = async (req, res) => {
         where: { email },
       });
 
-      // if user exists, update otp and expiry
-      // if not, create new user
       await sendEmail(email, otp); // send otp to email
       if (user) {
         user = await prisma.user.update({
@@ -51,26 +49,17 @@ const sendOtp = async (req, res) => {
 
     const fullPhone = `${phoneSuffix}${phone}`;
 
-    let user = await prisma.user.findUnique({
-      where: { phone: fullPhone },
+    user = await prisma.user.findFirst({
+      where: { phone: phone, phoneSuffix: phoneSuffix },
     });
 
     await sendOtpToPhoneNo(fullPhone); // Twilio service handles sending
 
-    if (user) {
-      user = await prisma.user.update({
-        where: { phone: fullPhone },
-        data: { otp, otpExpiry: new Date(expiry) },
-      });
-    } else {
-      user = await prisma.user.create({
-        data: {
-          phone: fullPhone,
-          otp,
-          otpExpiry: new Date(expiry),
-        },
-      });
-    }
+    user = await prisma.user.upsert({
+      where: { phone },
+      update: { otp, otpExpiry: new Date(expiry), phoneSuffix },
+      create: { phone, phoneSuffix, otp, otpExpiry: new Date(expiry) },
+    });
 
     return response(res, 200, "OTP sent to phone", { userId: user.id });
   } catch (error) {
@@ -143,7 +132,7 @@ const verifyOtp = async (req, res) => {
 
 const updateProfile = async (req, res) => {
   const { username, about, agreed } = req.body;
-  const userId = req.user.userId;
+  const userId = req.user?.userID || req.user.userId;
 
   try {
     const user = await prisma.user.findUnique({
@@ -193,7 +182,7 @@ const logout = (req, res) => {
 };
 
 const checkAuthentication = async (req, res) => {
-  const userId = req.user.userId ;
+  const userId = req.user?.userID || req.user.userId;
   if (!userId) {
     return response(res, 401, "Unauthorized");
   }
@@ -214,7 +203,7 @@ const checkAuthentication = async (req, res) => {
 };
 
 const getAllUsers = async (req, res) => {
-  const loggedInUser =  req.user.userId;
+  const loggedInUser = req.user.userId;
 
   try {
     // 1. Get all users except logged-in user
