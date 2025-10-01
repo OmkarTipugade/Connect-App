@@ -75,6 +75,13 @@ const createStatus = async (req, res) => {
       },
     });
 
+    if (req.io && req.socketUserMap) {
+      //Broadcast to all connecting users except the creator
+      for (const [connectedUserId, socketId] of req.socketUserMap) {
+        req.io.to(socketId).emit(actions.NEW_STATUS, populatedStatus);
+      }
+    }
+
     return response(res, 200, "Status created successfully", {
       status: {
         ...populatedStatus,
@@ -164,6 +171,23 @@ const viewStatus = async (req, res) => {
       },
     });
 
+    if (req.io && req.socketUserMap) {
+      //Broadcast to all connecting users except the creator
+      const statusAdmin = req.socketUserMap.get(status.userId.toString());
+      if (statusAdmin) {
+        const viewData = {
+          statusId: status.id,
+          viewerId: userId,
+          totalViewers: updatedStatus.viewedBy.length,
+          viewers: updatedStatus.viewedBy,
+        };
+
+        res.io.to(statusAdmin).emit(actions.STATUS_VIEWED, viewData);
+      }
+    } else {
+      console.error("Status admin not connected");
+    }
+
     return response(res, 200, "Status viewed successfully", updatedStatus);
   } catch (error) {
     console.error("Error in viewStatus:", error);
@@ -197,6 +221,13 @@ const deleteStatus = async (req, res) => {
       where: { id: storyId },
     });
 
+    if (req.io && req.socketUserMap) {
+      for (const [connectedUserId, socketId] of req.socketUserMap) {
+        if (connectedUserId !== userId) {
+          req.io.to(socketId).emit(actions.STATUS_DELETED, storyId);
+        }
+      }
+    }
     return response(res, 200, "Status deleted successfully");
   } catch (error) {
     console.error("Error in deleteStatus:", error);

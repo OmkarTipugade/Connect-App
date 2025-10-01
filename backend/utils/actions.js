@@ -1,27 +1,31 @@
 const actions = {
-    SEND_MESSAGE: 'send_message',
-    SEND_MESSAGE_ERROR: 'send_message_error',
-    RECEIVE_MESSAGE: 'receive_message',
+  SEND_MESSAGE: "send_message",
+  SEND_MESSAGE_ERROR: "send_message_error",
+  RECEIVE_MESSAGE: "receive_message",
 
-    USER_CONNECTED: 'user_connected',
-    USER_OFFLINE: 'user_offline',
+  USER_CONNECTED: "user_connected",
+  USER_OFFLINE: "user_offline",
 
-    TYPING_START: 'typing_start',
-    TYPING_STOP: 'typing_stop',
-    USER_TYPING: 'user_typing',
+  TYPING_START: "typing_start",
+  TYPING_STOP: "typing_stop",
+  USER_TYPING: "user_typing",
 
-    CONNECTION: 'connection',
-    DISCONNECT: 'disconnect',
+  CONNECTION: "connection",
+  DISCONNECT: "disconnect",
 
-    USER_STATUS_UPDATE: 'user_status_update',
-    GET_USER_STATUS: 'get_user_status',
+  USER_STATUS_UPDATE: "user_status_update",
+  GET_USER_STATUS: "get_user_status",
 
-    MESSAGE_READ: 'message_read',
-    MESSAGE_STATUS_UPDATED: 'message_status_updated',
-    MESSAGE_DELETED: 'message_deleted',
+  MESSAGE_READ: "message_read",
+  MESSAGE_STATUS_UPDATED: "message_status_updated",
+  MESSAGE_DELETED: "message_deleted",
 
-    ADD_REACTION: 'add_reaction',
-    REACTION_UPDATE: 'reaction_update',
-}
+  ADD_REACTION: "add_reaction",
+  REACTION_UPDATE: "reaction_update",
+
+  NEW_STATUS: "new_status",
+  STATUS_VIEWED: "status_viewed",
+  STATUS_DELETED: "status_deleted",
+};
 
 module.exports = { actions };
