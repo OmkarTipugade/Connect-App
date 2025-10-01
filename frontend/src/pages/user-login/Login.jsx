@@ -16,13 +16,14 @@ import {
   verifyOtp,
 } from "../../services/user.service";
 import { toast } from "react-toastify";
-import { FaArrowLeft, FaChevronDown } from "react-icons/fa";
+import { FaArrowLeft, FaChevronDown, FaPlus, FaUser } from "react-icons/fa";
+
 const avatars = [
+  "https://api.dicebear.com/6.x/avataaars/svg?seed=Luna",
   "https://api.dicebear.com/6.x/avataaars/svg?seed=Felix",
   "https://api.dicebear.com/6.x/avataaars/svg?seed=Aneka",
   "https://api.dicebear.com/6.x/avataaars/svg?seed=Mimi",
   "https://api.dicebear.com/6.x/avataaars/svg?seed=Jasper",
-  "https://api.dicebear.com/6.x/avataaars/svg?seed=Luna",
   "https://api.dicebear.com/6.x/avataaars/svg?seed=Zoe",
 ];
 
@@ -30,18 +31,18 @@ const Login = () => {
   const { step, setStep, userPhoneData, setUserPhoneData, resetLoginState } =
     useLoginStore();
   const { setUser } = useUserStore();
-  const { theme, setTheme } = useThemeStore();
+  const { theme } = useThemeStore();
 
   const [phoneno, setPhoneno] = useState("");
   const [selectedCountry, setSelectedCountry] = useState(contries[0]);
   const [otp, setOtp] = useState(new Array(6).fill(""));
+  const [profilePicturePreview, setProfilePicturePreview] = useState(null); // preview URL
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [about, setAbout] = useState("");
   const [agreed, setAgreed] = useState(false);
   const [profilePicture, setProfilePicture] = useState(null);
   const [selectedAvatar, setSelectedAvatar] = useState(avatars[0]);
-  const [profilePictureFile, setProfilePictureFile] = useState(null);
   const [error, setError] = useState(null);
   const [showDropdown, setShowDropdown] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -126,11 +127,12 @@ const Login = () => {
     }
   };
 
-  const handleChange = (e) => {
+  const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       setProfilePicture(file);
-      setProfilePicture(URL.createObjectURL(file));
+      setProfilePicturePreview(URL.createObjectURL(file));
+      setSelectedAvatar(null);
     }
   };
 
@@ -140,14 +142,15 @@ const Login = () => {
       const formData = new FormData();
       formData.append("username", data.username);
       formData.append("agreed", data.agreed);
-      if (profilePicture) {
-        formData.append("media", profilePicture);
+
+      if (profilePictureFile) {
+        formData.append("media", profilePicture); // actual uploaded file
       } else {
-        formData.append("media", selectedAvatar);
+        formData.append("media", selectedAvatar); // avatar URL
       }
 
       await updateUserProfile(formData);
-      toast.success("Wellcome back on Connect");
+      toast.success("Welcome back on Connect");
       navigate("/");
       resetLoginState();
     } catch (error) {
@@ -286,7 +289,7 @@ const Login = () => {
 
         <h1
           className={`text-2xl font-bold mb-4 ${
-            theme === "dark" ? "text-white" : "text-gray-900"
+            theme === "dark" ? "text-gray-200" : "text-gray-700"
           } `}
         >
           Connect App
@@ -302,7 +305,7 @@ const Login = () => {
           >
             <p
               className={`text-sm ${
-                theme === "dark" ? "text-white" : "text-gray-900"
+                theme === "dark" ? "text-gray-200" : "text-gray-700"
               } `}
             >
               Enter your Phone Number:
@@ -434,7 +437,7 @@ const Login = () => {
           <form onSubmit={handleOtpSubmit(onOtpSubmit)} className="space-y-4">
             <p
               className={`text-sm ${
-                theme === "dark" ? "text-white" : "text-gray-900"
+                theme === "dark" ? "text-gray-200" : "text-gray-700"
               } `}
             >
               Please enter the 6-digit OTP sent to your{" "}
@@ -470,7 +473,7 @@ const Login = () => {
             )}
             <button
               type="submit"
-              className="w-full py-2 px-4 bg-red-500 text-white rounded-md hover:bg-red-600 transition"
+              className="w-full py-2 px-4 bg-red-500 text-white rounded-md hover:bg-red-600 transition duration-300 ease-in-out"
             >
               {loading ? <Spinner /> : "Verify OTP"}
             </button>
@@ -479,12 +482,130 @@ const Login = () => {
               onClick={handleBack}
               className={`w-full mt-2 ${
                 theme === "dark"
-                  ? "bg-gray-700 text-gray-300"
+                  ? "bg-gray-700 text-gray-200"
                   : "bg-gray-200 text-gray-700"
               } py-2 rounded-md transition flex items-center justify-center`}
             >
               <FaArrowLeft className="mr-2" />
               Go Back
+            </button>
+          </form>
+        )}
+
+        {/* step 3 */}
+        {step === 3 && (
+          <form
+            action={handleProfilesetupSubmit(onProfileSubmit)}
+            className="space-y-4"
+          >
+            <div className="flex flex-col items-center mb-4">
+              <div className="relative w-24 h-24 mb-2">
+                <img
+                  src={profilePicturePreview || selectedAvatar}
+                  alt="Profile"
+                  className="h-full w-full rounded-full object-cover shadow-lg"
+                />
+
+                <label
+                  htmlFor="profile-picture"
+                  className="absolute bottom-0 bg-red-500 text-white p-2 rounded-full cursor-pointer hover:bg-red-600 transition duration-300"
+                >
+                  <FaPlus className="h-4 w-4" />
+                </label>
+                <input
+                  type="file"
+                  id="profile-picture"
+                  accept="image/*"
+                  onCanPlay={handleFileChange}
+                  className="hidden"
+                />
+              </div>
+              <p
+                className={`text-sm ${
+                  theme == "dark" ? "text-gray-200" : "text-gray-700"
+                } mb-2`}
+              >
+                Choose an avatar
+              </p>
+              <div className="flex flex-wrap justify-center gap-4">
+                {avatars.map((avatar, id) => {
+                  return (
+                    <img
+                      key={avatar}
+                      src={avatar}
+                      onClick={() => {
+                        setSelectedAvatar(avatar);
+                        setProfilePicture(null);
+                        setProfilePicturePreview(null);
+                      }}
+                      alt={`Avatar ${id + 1}`}
+                      className={`w-12 h-12 rounded-full shadow-lg cursor-pointer transition duration-300 transform hover:scale-110 ${
+                        selectedAvatar === avatar
+                          ? "ring-2 ring-red-500"
+                          : "ring-2 ring-transparent"
+                      }`}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+            <div className="relative">
+              <FaUser
+                className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${
+                  theme === "dark" ? "text-gray-200" : "text-gray-700"
+                }`}
+              />
+              <input
+                {...profilesetupRegister("username")}
+                type="text"
+                placeholder="Username"
+                className={`w-full pl-10 pr-3 py-2 border ${
+                  theme === "dark"
+                    ? "bg-gray-700 border-gray-600 text-gray-200"
+                    : "bg-white border-gray-300"
+                } rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 text-lg `}
+              />
+              {profilesetupErrors.username && (
+                <p className="text-red-500 text-sm mt-1">
+                  {profilesetupErrors.username.message}
+                </p>
+              )}
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <input
+                {...profilesetupRegister("agreed")}
+                type="checkbox"
+                className={`${
+                  theme === "dark" ? "text-red-500 bg-gray-700" : "text-red-500"
+                } focus:ring-red-500`}
+              />
+              <label
+                htmlFor="terms"
+                className={`text-sm ${
+                  theme === "dark" ? "text-gray-300" : "text-gray-700"
+                }`}
+              >
+                I agree{" "}
+                <a href="#" className="text-red-500 hover:underline">
+                  Terms and Conditions
+                </a>
+              </label>
+
+              {profilesetupErrors.agreed && (
+                <p className="text-sm text-red-500 mt-1">
+                  {profilesetupErrors.agreed.message}
+                </p>
+              )}
+            </div>
+            <button
+              type="submit"
+              disabled={!watch("agreed") || loading}
+              className={`w-full text-lg py-2 px-4 bg-red-500 text-white rounded-md hover:bg-red-600 transition duration-300 ease-in-out transform hover:scale-105 ${
+                loading && "opacity-50 cursor-not-allowed"
+              }`}
+            >
+              {loading ? <Spinner /> : "Create profile"}
             </button>
           </form>
         )}
