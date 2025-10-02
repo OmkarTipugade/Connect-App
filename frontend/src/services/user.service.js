@@ -43,7 +43,7 @@ const updateUserProfile = async (profileData) => {
 const checkAuthentication = async () => {
   try {
     const response = await axiosInstance.get("/api/auth/check-auth");
-    if (response.data.status === 200) {
+    if (response.data.status === 'success') {
       return { isAuthenticated: true, user: response?.data?.data };
     } else if (response.data.status === 401) {
       return { isAuthenticated: false, user: null };

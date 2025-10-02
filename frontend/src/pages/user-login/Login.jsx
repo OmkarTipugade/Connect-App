@@ -52,9 +52,8 @@ const Login = () => {
 
   const ProgressBar = () => (
     <div
-      className={`w-full bg-gray-200 rounded-full h-2 mb-4 ${
-        theme === "dark" ? "bg-gray-700" : "bg-gray-200"
-      }`}
+      className={`w-full bg-gray-200 rounded-full h-2 mb-4 ${theme === "dark" ? "bg-gray-700" : "bg-gray-200"
+        }`}
     >
       <div
         className="bg-red-500 h-full rounded-full duration-500 ease-in-out"
@@ -143,14 +142,14 @@ const Login = () => {
       formData.append("username", data.username);
       formData.append("agreed", data.agreed);
 
-      if (profilePictureFile) {
-        formData.append("media", profilePicture); // actual uploaded file
+      if (profilePicture) {
+        formData.append("profilePicture", profilePicture); // actual uploaded file
       } else {
-        formData.append("media", selectedAvatar); // avatar URL
+        formData.append("profilePicture", selectedAvatar); // avatar URL
       }
-
+      formData.append("about", data.about);
       await updateUserProfile(formData);
-      toast.success("Welcome back on Connect");
+      toast.success("Welcome back on Connect 🎉");
       navigate("/");
       resetLoginState();
     } catch (error) {
@@ -224,7 +223,6 @@ const Login = () => {
   const profilesetupValidationSchema = yup.object().shape({
     username: yup.string().required("Username is required"),
     agreed: yup.boolean().oneOf([true], "You must agree to the terms"),
-    name: yup.string().required("Name is required"),
     about: yup.string().max(100, "About must be at most 100 characters"),
   });
 
@@ -261,17 +259,15 @@ const Login = () => {
   );
   return (
     <div
-      className={`min-h-screen flex items-center justify-center ${
-        theme === "dark" ? "bg-gray-900" : "bg-gray-100"
-      }`}
+      className={`min-h-screen flex items-center justify-center ${theme === "dark" ? "bg-gray-900" : "bg-gray-100"
+        }`}
     >
       <motion.div
         initial={{ opacity: 0, y: -100 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className={`flex flex-col items-center justify-center p-6 md:p-8 rounded-lg shadow-md ${
-          theme === "dark" ? "bg-gray-800" : "bg-white"
-        } w-full max-w-md`}
+        className={`flex flex-col items-center justify-center p-6 md:p-8 rounded-lg shadow-md ${theme === "dark" ? "bg-gray-800" : "bg-white"
+          } w-full max-w-md`}
       >
         <motion.div
           initial={{ scale: 0 }}
@@ -288,9 +284,8 @@ const Login = () => {
         </motion.div>
 
         <h1
-          className={`text-2xl font-bold mb-4 ${
-            theme === "dark" ? "text-gray-200" : "text-gray-700"
-          } `}
+          className={`text-2xl font-bold mb-4 ${theme === "dark" ? "text-gray-200" : "text-gray-700"
+            } `}
         >
           Connect App
         </h1>
@@ -304,9 +299,8 @@ const Login = () => {
             className={`space-y-4`}
           >
             <p
-              className={`text-sm ${
-                theme === "dark" ? "text-gray-200" : "text-gray-700"
-              } `}
+              className={`text-sm ${theme === "dark" ? "text-gray-200" : "text-gray-700"
+                } `}
             >
               Enter your Phone Number:
             </p>
@@ -315,9 +309,8 @@ const Login = () => {
                 <div className="relative w-1/3">
                   <button
                     type="button"
-                    className={`flex-shrink-0 z-10 inline-flex items-center py-2.5 px-4 text-sm text-center font-medium ${
-                      theme === "dark" ? "bg-gray-700" : "bg-white"
-                    } rounded-s-lg border hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200`}
+                    className={`flex-shrink-0 z-10 inline-flex items-center py-2.5 px-4 text-sm text-center font-medium ${theme === "dark" ? "bg-gray-700" : "bg-white"
+                      } rounded-s-lg border hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200`}
                     onClick={() => setShowDropdown(!showDropdown)}
                   >
                     <span className="flex justify-center items-center">
@@ -327,38 +320,34 @@ const Login = () => {
                   </button>
                   {showDropdown && (
                     <div
-                      className={`absolute z-10 bg-white rounded-b-lg shadow-lg ${
-                        theme === "dark"
-                          ? "bg-gray-700 border border-gray-600"
-                          : "bg-white border border-gray-200"
-                      } border rounded-md shadow-lg max-h-60 overflow-auto`}
+                      className={`absolute z-10 bg-white rounded-b-lg shadow-lg ${theme === "dark"
+                        ? "bg-gray-700 border border-gray-600"
+                        : "bg-white border border-gray-200"
+                        } border rounded-md shadow-lg max-h-60 overflow-auto`}
                     >
                       <div
-                        className={`sticky top-0 ${
-                          theme === "dark" ? "bg-gray-700" : "bg-white"
-                        } p-2`}
+                        className={`sticky top-0 ${theme === "dark" ? "bg-gray-700" : "bg-white"
+                          } p-2`}
                       >
                         <input
                           type="text"
                           placeholder="Search countries..."
                           onChange={(e) => setSearchTerm(e.target.value)}
                           value={searchTerm}
-                          className={`w-full px-2 py-1 border ${
-                            theme === "dark"
-                              ? "bg-gray-700 border-gray-600 text-white"
-                              : "bg-white border-gray-200"
-                          } rounded-md text-sm focus:outline-none focus:ring-red-500 focus:right-2`}
+                          className={`w-full px-2 py-1 border ${theme === "dark"
+                            ? "bg-gray-700 border-gray-600 text-white"
+                            : "bg-white border-gray-200"
+                            } rounded-md text-sm focus:outline-none focus:ring-red-500 focus:right-2`}
                         />
                       </div>
                       {filteredCountries.map((country) => (
                         <button
                           key={country.alpha2}
                           type="button"
-                          className={`w-full text-left px-2 py-1 ${
-                            theme === "dark"
-                              ? "hover:bg-gray-600"
-                              : "hover:bg-gray-200"
-                          } focus:outline-none focus:bg-gray-100`}
+                          className={`w-full text-left px-2 py-1 ${theme === "dark"
+                            ? "hover:bg-gray-600"
+                            : "hover:bg-gray-200"
+                            } focus:outline-none focus:bg-gray-100`}
                           onClick={() => {
                             setSelectedCountry(country);
                             setShowDropdown(!showDropdown);
@@ -376,13 +365,11 @@ const Login = () => {
                   value={phoneno}
                   placeholder="Phone Number"
                   onChange={(e) => setPhoneno(e.target.value)}
-                  className={`w-2/3 px-4 py-2 border ${
-                    theme === "dark"
-                      ? "bg-gray-700 border-gray-600 text-white"
-                      : "bg-white border-gray-200"
-                  } rounded-md focus:outline-none focus:ring-red-500 focus:right-2 ${
-                    loginErrors.phoneno && "border-red-500"
-                  }`}
+                  className={`w-2/3 px-4 py-2 border ${theme === "dark"
+                    ? "bg-gray-700 border-gray-600 text-white"
+                    : "bg-white border-gray-200"
+                    } rounded-md focus:outline-none focus:ring-red-500 focus:right-2 ${loginErrors.phoneno && "border-red-500"
+                    }`}
                 />
               </div>
               {loginErrors.phoneno && (
@@ -407,13 +394,11 @@ const Login = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Enter your email"
-                className={`w-full px-4 py-2 border ${
-                  theme === "dark"
-                    ? "bg-gray-700 border-gray-600 text-white"
-                    : "bg-white border-gray-300"
-                } rounded-md focus:outline-none focus:ring-red-500 focus:right-2 ${
-                  loginErrors.email && "border-red-500"
-                }`}
+                className={`w-full px-4 py-2 border ${theme === "dark"
+                  ? "bg-gray-700 border-gray-600 text-white"
+                  : "bg-white border-gray-300"
+                  } rounded-md focus:outline-none focus:ring-red-500 focus:right-2 ${loginErrors.email && "border-red-500"
+                  }`}
               />
               {loginErrors.email && (
                 <p className="text-red-500 text-xs">
@@ -436,9 +421,8 @@ const Login = () => {
         {step === 2 && (
           <form onSubmit={handleOtpSubmit(onOtpSubmit)} className="space-y-4">
             <p
-              className={`text-sm ${
-                theme === "dark" ? "text-gray-200" : "text-gray-700"
-              } `}
+              className={`text-sm ${theme === "dark" ? "text-gray-200" : "text-gray-700"
+                } `}
             >
               Please enter the 6-digit OTP sent to your{" "}
               {userPhoneData ? userPhoneData.phoneSuffix : "email "}{" "}
@@ -480,11 +464,10 @@ const Login = () => {
             <button
               type="button"
               onClick={handleBack}
-              className={`w-full mt-2 ${
-                theme === "dark"
-                  ? "bg-gray-700 text-gray-200"
-                  : "bg-gray-200 text-gray-700"
-              } py-2 rounded-md transition flex items-center justify-center`}
+              className={`w-full mt-2 ${theme === "dark"
+                ? "bg-gray-700 text-gray-200"
+                : "bg-gray-200 text-gray-700"
+                } py-2 rounded-md transition flex items-center justify-center`}
             >
               <FaArrowLeft className="mr-2" />
               Go Back
@@ -494,10 +477,7 @@ const Login = () => {
 
         {/* step 3 */}
         {step === 3 && (
-          <form
-            action={handleProfilesetupSubmit(onProfileSubmit)}
-            className="space-y-4"
-          >
+          <form onSubmit={handleProfilesetupSubmit(onProfileSubmit)} className="space-y-4">
             <div className="flex flex-col items-center mb-4">
               <div className="relative w-24 h-24 mb-2">
                 <img
@@ -516,14 +496,13 @@ const Login = () => {
                   type="file"
                   id="profile-picture"
                   accept="image/*"
-                  onCanPlay={handleFileChange}
+                  onChange={handleFileChange}
                   className="hidden"
                 />
               </div>
               <p
-                className={`text-sm ${
-                  theme == "dark" ? "text-gray-200" : "text-gray-700"
-                } mb-2`}
+                className={`text-sm ${theme == "dark" ? "text-gray-200" : "text-gray-700"
+                  } mb-2`}
               >
                 Choose an avatar
               </p>
@@ -539,11 +518,10 @@ const Login = () => {
                         setProfilePicturePreview(null);
                       }}
                       alt={`Avatar ${id + 1}`}
-                      className={`w-12 h-12 rounded-full shadow-lg cursor-pointer transition duration-300 transform hover:scale-110 ${
-                        selectedAvatar === avatar
-                          ? "ring-2 ring-red-500"
-                          : "ring-2 ring-transparent"
-                      }`}
+                      className={`w-12 h-12 rounded-full shadow-lg cursor-pointer transition duration-300 transform hover:scale-110 ${selectedAvatar === avatar
+                        ? "ring-2 ring-red-500"
+                        : "ring-2 ring-transparent"
+                        }`}
                     />
                   );
                 })}
@@ -551,23 +529,37 @@ const Login = () => {
             </div>
             <div className="relative">
               <FaUser
-                className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${
-                  theme === "dark" ? "text-gray-200" : "text-gray-700"
-                }`}
+                className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${theme === "dark" ? "text-gray-200" : "text-gray-700"
+                  }`}
               />
               <input
                 {...profilesetupRegister("username")}
                 type="text"
                 placeholder="Username"
-                className={`w-full pl-10 pr-3 py-2 border ${
-                  theme === "dark"
-                    ? "bg-gray-700 border-gray-600 text-gray-200"
-                    : "bg-white border-gray-300"
-                } rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 text-lg `}
+                className={`w-full pl-10 pr-3 py-2 border ${theme === "dark"
+                  ? "bg-gray-700 border-gray-600 text-gray-200"
+                  : "bg-white border-gray-300"
+                  } rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 text-lg `}
               />
               {profilesetupErrors.username && (
                 <p className="text-red-500 text-sm mt-1">
                   {profilesetupErrors.username.message}
+                </p>
+              )}
+            </div>
+            <div className="relative">
+              <textarea
+                {...profilesetupRegister("about")}
+                placeholder="Write something about yourself..."
+                rows="3"
+                className={`w-full pl-3 pr-3 py-2 border resize-none ${theme === "dark"
+                  ? "bg-gray-700 border-gray-600 text-gray-200"
+                  : "bg-white border-gray-300"
+                  } rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 text-lg`}
+              />
+              {profilesetupErrors.about && (
+                <p className="text-red-500 text-sm mt-1">
+                  {profilesetupErrors.about.message}
                 </p>
               )}
             </div>
@@ -576,15 +568,13 @@ const Login = () => {
               <input
                 {...profilesetupRegister("agreed")}
                 type="checkbox"
-                className={`${
-                  theme === "dark" ? "text-red-500 bg-gray-700" : "text-red-500"
-                } focus:ring-red-500`}
+                className={`${theme === "dark" ? "text-red-500 bg-gray-700" : "text-red-500"
+                  } focus:ring-red-500`}
               />
               <label
                 htmlFor="terms"
-                className={`text-sm ${
-                  theme === "dark" ? "text-gray-300" : "text-gray-700"
-                }`}
+                className={`text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-700"
+                  }`}
               >
                 I agree{" "}
                 <a href="#" className="text-red-500 hover:underline">
@@ -601,9 +591,8 @@ const Login = () => {
             <button
               type="submit"
               disabled={!watch("agreed") || loading}
-              className={`w-full text-lg py-2 px-4 bg-red-500 text-white rounded-md hover:bg-red-600 transition duration-300 ease-in-out transform hover:scale-105 ${
-                loading && "opacity-50 cursor-not-allowed"
-              }`}
+              className={`w-full text-lg py-2 px-4 bg-red-500 text-white rounded-md hover:bg-red-600 transition duration-300 ease-in-out transform hover:scale-105 ${loading && "opacity-50 cursor-not-allowed"
+                }`}
             >
               {loading ? <Spinner /> : "Create profile"}
             </button>

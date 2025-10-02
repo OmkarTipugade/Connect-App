@@ -26,6 +26,6 @@ const uploadFileToCloudinary = async (file) => {
   });
 };
 
-const multerMiddleware = multer({ dest: "uploads/" }).single("media");
+const multerMiddleware = multer({ dest: "uploads/" }).single("profilePicture");
 
 module.exports = { uploadFileToCloudinary, multerMiddleware };

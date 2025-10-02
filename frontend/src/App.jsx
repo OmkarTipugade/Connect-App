@@ -1,18 +1,35 @@
-import {BrowserRouter as Router, Route, Routes} from 'react-router-dom'
-import { ToastContainer } from 'react-toastify'
-import Login from './pages/user-login/Login'
-import 'react-toastify/ReactToastify.css'
-const App =()=> {
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { ToastContainer } from "react-toastify";
+import Login from "./pages/user-login/Login";
+import "react-toastify/ReactToastify.css";
+import { ProtectedRoute, PublicRoute } from "./protected";
+import Home from "./components/Home";
+import UserDetails from "./components/UserDetails";
+import Status from "./pages/status/Status";
+import Settings from "./pages/settings/Settings";
+
+const App = () => {
   return (
     <>
-    <ToastContainer position='top-right' autoClose={3000} />
-    <Router>
-      <Routes>
-        <Route path="/user-login" element={<Login/>} />
-      </Routes>
-    </Router>
-    </>
-  )
-}
+      <ToastContainer position="top-right" autoClose={3000} />
+      <Router>
+        <Routes>
+          {/* Public routes */}
+          <Route element={<PublicRoute />}>
+            <Route path="/user-login" element={<Login />} />
+          </Route>
 
-export default App
+          {/* Protected routes */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/" element={<Home />} />
+            <Route path="/user-profile" element={<UserDetails />} />
+            <Route path="/status" element={<Status />} />
+            <Route path="/settings" element={<Settings />} />
+          </Route>
+        </Routes>
+      </Router>
+    </>
+  );
+};
+
+export default App;

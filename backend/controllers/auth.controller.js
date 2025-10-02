@@ -135,41 +135,38 @@ const updateProfile = async (req, res) => {
   const userId = req.user?.userID || req.user.userId;
 
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-    });
-    const file = req.file;
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return response(res, 404, "User not found");
 
-    if (!user) {
-      return response(res, 404, "User not found");
+    const data = {};
+
+    if (username) data.username = username;
+    if (about) data.about = about;
+    if (agreed !== undefined) {
+      data.agreed = agreed === "true";
     }
 
-    if (file) {
-      const profilePictureUrl = uploadFileToCloudinary(file);
-      console.log(profilePictureUrl);
-      user.profilePicture = profilePictureUrl?.secure_url;
+    if (req.file) {
+      // Multer uploaded file → upload to Cloudinary
+      const profilePictureUrl = await uploadFileToCloudinary(req.file);
+      data.profilePicture = profilePictureUrl?.secure_url;
     } else if (req.body.profilePicture) {
-      user.profilePicture = req.body.profilePicture;
+      // Avatar URL (or plain URL string)
+      data.profilePicture = req.body.profilePicture;
     }
-    if (username) user.username = username;
-    if (about) user.about = about;
-    if (agreed) user.agreed = agreed;
 
-    await prisma.user.update({
+    const updatedUser = await prisma.user.update({
       where: { id: userId },
-      data: {
-        username: user.username,
-        about: user.about,
-        profilePicture: user.profilePicture,
-        agreed: user.agreed,
-      },
+      data,
     });
-    return response(res, 200, "Profile updated", { user });
+
+    return response(res, 200, "Profile updated", { user: updatedUser });
   } catch (error) {
     console.error("Error in updateProfile:", error);
     return response(res, 500, "Internal Server Error");
   }
 };
+
 
 const logout = (req, res) => {
   try {
@@ -256,9 +253,9 @@ const getAllUsers = async (req, res) => {
           ...user,
           conversation: conversation
             ? {
-                ...conversation,
-                lastMessage: conversation.messages[0] || null,
-              }
+              ...conversation,
+              lastMessage: conversation.messages[0] || null,
+            }
             : null,
         };
       })
