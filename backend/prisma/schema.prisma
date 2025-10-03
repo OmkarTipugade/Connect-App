@@ -14,7 +14,7 @@ datasource db {
 }
 
 model User {
-  id             String       @id @default(cuid())
+  id             String    @id @default(cuid())
   username       String?
   phone          String?   @unique
   phoneSuffix    String?
@@ -33,16 +33,16 @@ model User {
   updatedAt      DateTime  @updatedAt
 
   // relations
-  sentMessages     Message[]      @relation("SentMessages")
-  receivedMessages Message[]      @relation("ReceivedMessages")
-  conversations    Conversation[]
+  sentMessages     Message[]                 @relation("SentMessages")
+  receivedMessages Message[]                 @relation("ReceivedMessages")
   reactions        Reaction[]
-  Status           Status[]
-  StatusView       StatusView[]
+  statuses         Status[]
+  statusViews      StatusView[]
+  conversations    ConversationParticipant[] // through pivot
 }
 
 model Reaction {
-  id        String     @id @default(cuid())
+  id        String  @id @default(cuid())
   emoji     String
   user      User    @relation(fields: [userId], references: [id])
   userId    String
@@ -51,18 +51,26 @@ model Reaction {
 }
 
 model Conversation {
-  id      String    @id @default(cuid())
-  members User[] // many-to-many relation
-
-  lastMsg   Message? @relation("LastMessage", fields: [lastMsgId], references: [id])
-  lastMsgId String?     @unique
-
-  unreadCount Int @default(0)
-
-  messages Message[] @relation("ConversationMessages") // all messages in this conversation
+  id       String                    @id @default(cuid())
+  members  ConversationParticipant[] // pivot table for per-user state
+  messages Message[]                 @relation("ConversationMessages")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model ConversationParticipant {
+  id             String       @id @default(cuid())
+  user           User         @relation(fields: [userId], references: [id])
+  userId         String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  conversationId String
+
+  lastMsgId   String? // stores the last message visible for this user
+  lastMsg     Message? @relation("LastMessagePerUser", fields: [lastMsgId], references: [id])
+  unreadCount Int      @default(0)
+
+  @@unique([userId, conversationId]) // each user can only join once
 }
 
 model Message {
@@ -71,7 +79,7 @@ model Message {
   conversation   Conversation @relation("ConversationMessages", fields: [conversationId], references: [id])
   conversationId String
 
-  sender   User @relation("SentMessages", fields: [senderId], references: [id])
+  sender   User   @relation("SentMessages", fields: [senderId], references: [id])
   senderId String
 
   receiver        User          @relation("ReceivedMessages", fields: [receiverId], references: [id])
@@ -83,39 +91,38 @@ model Message {
 
   reactions Reaction[]
 
-  lastMessageOf Conversation? @relation("LastMessage") 
+  lastMessageOf ConversationParticipant[] @relation("LastMessagePerUser")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model Status {
-  id           String        @id @default(cuid())
-  user         User       @relation(fields: [userId], references: [id])
-  userId       String        
-  username     String?   
-  profilePicture String?  
-  url          String?
-  content      String?
-  contentType  ContentType @default(TEXT)
-  expiresAt    DateTime
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id             String      @id @default(cuid())
+  user           User        @relation(fields: [userId], references: [id])
+  userId         String
+  username       String?
+  profilePicture String?
+  url            String?
+  content        String?
+  contentType    ContentType @default(TEXT)
+  expiresAt      DateTime
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 
-  viewedBy     StatusView[]
+  viewedBy StatusView[]
 }
 
 model StatusView {
-  id            String      @id @default(cuid())
-  status        Status   @relation(fields: [statusId], references: [id])
-  statusId      String
-  user          User     @relation(fields: [userId], references: [id])
-  userId        String
-  username      String?  
-  profilePicture String? 
-  viewedAt      DateTime @default(now())
+  id             String   @id @default(cuid())
+  status         Status   @relation(fields: [statusId], references: [id])
+  statusId       String
+  user           User     @relation(fields: [userId], references: [id])
+  userId         String
+  username       String?
+  profilePicture String?
+  viewedAt       DateTime @default(now())
 }
-
 
 enum ContentType {
   TEXT

@@ -97,8 +97,8 @@ const verifyOtp = async (req, res) => {
 
       const fullPhone = `${phoneSuffix}${phone}`;
 
-      user = await prisma.user.findUnique({
-        where: { phone: fullPhone },
+      user = await prisma.user.findFirst({
+        where: { phone, phoneSuffix },
       });
 
       if (!user) return response(res, 404, "User not found");
@@ -167,7 +167,6 @@ const updateProfile = async (req, res) => {
   }
 };
 
-
 const logout = (req, res) => {
   try {
     res.cookie("auth_token", "", { expires: new Date(0) });
@@ -200,7 +199,7 @@ const checkAuthentication = async (req, res) => {
 };
 
 const getAllUsers = async (req, res) => {
-  const loggedInUser = req.user.userId;
+  const loggedInUser = req.user.userId || req.user.userID;
 
   try {
     // 1. Get all users except logged-in user
@@ -253,9 +252,9 @@ const getAllUsers = async (req, res) => {
           ...user,
           conversation: conversation
             ? {
-              ...conversation,
-              lastMessage: conversation.messages[0] || null,
-            }
+                ...conversation,
+                lastMessage: conversation.messages[0] || null,
+              }
             : null,
         };
       })

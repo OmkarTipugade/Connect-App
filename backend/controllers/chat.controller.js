@@ -13,18 +13,22 @@ const sendMessage = async (req, res) => {
       return response(res, 400, "Missing required fields");
     }
 
-    const participants = [senderId, receiverId].sort();
-
     //check if conversation exists between sender and receiver
     let conversation = await prisma.conversation.findFirst({
       where: {
         AND: [
-          { members: { some: { id: senderId } } },
-          { members: { some: { id: receiverId } } },
+          { members: { some: { userId: senderId } } },
+          { members: { some: { userId: receiverId } } },
         ],
       },
       include: {
-        members: { select: { id: true, username: true } },
+        members: {
+          include: {
+            user: {
+              select: { id: true, username: true, profilePicture: true }
+            }
+          }
+        },
         messages: {
           orderBy: { createdAt: "desc" },
           take: 1,
@@ -33,15 +37,23 @@ const sendMessage = async (req, res) => {
     });
 
     if (!conversation) {
+      // Create conversation
       conversation = await prisma.conversation.create({
         data: {
           members: {
-            connect: [{ id: senderId }, { id: receiverId }],
+            create: [
+              { userId: senderId },
+              { userId: receiverId }
+            ]
           },
         },
         include: {
           members: {
-            select: { id: true, username: true, profilePicture: true },
+            include: {
+              user: {
+                select: { id: true, username: true, profilePicture: true }
+              }
+            }
           },
         },
       });
@@ -54,7 +66,7 @@ const sendMessage = async (req, res) => {
     if (file) {
       const uploadFile = await uploadFileToCloudinary(file);
 
-      if (uploadFile?.secure_url) {
+      if (!uploadFile?.secure_url) {
         return response(res, 500, "File upload failed");
       }
       imageOrVideoUrl = uploadFile.secure_url;
@@ -86,16 +98,33 @@ const sendMessage = async (req, res) => {
       },
     });
 
-    if (message?.content) {
-      conversation.lastMsgId = message.id;
-    }
-
-    conversation.unreadCount += 1;
-    conversation = await prisma.conversation.update({
-      where: { id: conversation.id },
+    // Update conversation participants with last message and unread count
+    await prisma.conversationParticipant.updateMany({
+      where: {
+        conversationId: conversation.id,
+      },
       data: {
         lastMsgId: message.id,
-        unreadCount: conversation.unreadCount,
+      },
+    });
+
+    // Increment unread count only for the receiver
+    await prisma.conversationParticipant.updateMany({
+      where: {
+        conversationId: conversation.id,
+        userId: receiverId,
+      },
+      data: {
+        unreadCount: {
+          increment: 1,
+        },
+      },
+    });
+
+    // Update conversation timestamp
+    await prisma.conversation.update({
+      where: { id: conversation.id },
+      data: {
         updatedAt: new Date(),
       },
     });
@@ -154,20 +183,27 @@ const getConversation = async (req, res) => {
   const userId = req.user?.userID || req.user.userId;
 
   try {
-    const conversations = await prisma.conversation.findMany({
+    // Get conversations where user is a participant
+    const userParticipations = await prisma.conversationParticipant.findMany({
       where: {
-        members: {
-          some: { id: userId },
-        },
+        userId: userId,
       },
       include: {
-        members: {
-          select: {
-            id: true,
-            username: true,
-            profilePicture: true,
-            isOnline: true,
-            lastSeen: true,
+        conversation: {
+          include: {
+            members: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    username: true,
+                    profilePicture: true,
+                    isOnline: true,
+                    lastSeen: true,
+                  },
+                },
+              },
+            },
           },
         },
         lastMsg: {
@@ -190,9 +226,21 @@ const getConversation = async (req, res) => {
         },
       },
       orderBy: {
-        updatedAt: "desc",
+        conversation: {
+          updatedAt: "desc",
+        },
       },
     });
+
+    // Transform the data to match the expected format
+    const conversations = userParticipations.map((participation) => ({
+      id: participation.conversation.id,
+      members: participation.conversation.members.map(member => member.user),
+      lastMsg: participation.lastMsg,
+      unreadCount: participation.unreadCount,
+      createdAt: participation.conversation.createdAt,
+      updatedAt: participation.conversation.updatedAt,
+    }));
 
     return res
       .status(201)
@@ -207,23 +255,24 @@ const getMessagesOfSpecificChat = async (req, res) => {
   const { conversationId } = req.params;
   const userId = req.user?.userID || req.user.userId;
   try {
-    // 1. Check if conversation exists
-    const conversation = await prisma.conversation.findUnique({
-      where: { id: conversationId },
-      include: { members: true },
+    // 1. Check if user is a participant in this conversation
+    const participation = await prisma.conversationParticipant.findUnique({
+      where: {
+        userId_conversationId: {
+          userId: userId,
+          conversationId: conversationId,
+        },
+      },
+      include: {
+        conversation: true,
+      },
     });
 
-    if (!conversation) {
-      return response(res, 404, "Conversation not found");
-    }
-
-    // 2. Check if user is a participant
-    const isParticipant = conversation.members.some((p) => p.id === userId);
-    if (!isParticipant) {
+    if (!participation) {
       return response(res, 403, "Not authorized to view this conversation");
     }
 
-    // 3. Fetch all messages for this conversation
+    // 2. Fetch all messages for this conversation
     const messages = await prisma.message.findMany({
       where: { conversationId: conversationId },
       include: {
@@ -235,7 +284,7 @@ const getMessagesOfSpecificChat = async (req, res) => {
       orderBy: { createdAt: "asc" },
     });
 
-    conversation.unreadCount = 0;
+
     // 4. Mark user’s received messages as READ
     await prisma.message.updateMany({
       where: {
@@ -246,6 +295,19 @@ const getMessagesOfSpecificChat = async (req, res) => {
       data: {
         messageStatus: "READ",
         updatedAt: new Date(),
+      },
+    });
+
+    // 4. Reset unread count for this user
+    await prisma.conversationParticipant.update({
+      where: {
+        userId_conversationId: {
+          userId: userId,
+          conversationId: conversationId,
+        },
+      },
+      data: {
+        unreadCount: 0,
       },
     });
 
