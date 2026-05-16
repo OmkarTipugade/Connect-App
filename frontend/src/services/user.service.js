@@ -1,11 +1,10 @@
 import axiosInstance from "./url.service";
 
-const sendOtp = async (phone, phoneSuffix, otp, email) => {
+const sendOtp = async (phone, phoneSuffix, email) => {
   try {
     const response = await axiosInstance.post("/api/auth/send-otp", {
       phone,
       phoneSuffix,
-      otp,
       email,
     });
     return response.data;

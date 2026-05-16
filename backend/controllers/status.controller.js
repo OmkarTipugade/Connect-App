@@ -1,8 +1,7 @@
 const { uploadFileToCloudinary } = require("../config/cloudinary.config");
-const { PrismaClient } = require("@prisma/client");
 const { response } = require("../utils/responseHandler");
 const { actions } = require("../utils/actions");
-const prisma = new PrismaClient();
+const prisma = require("../prismaClient");
 
 const createStatus = async (req, res) => {
   try {

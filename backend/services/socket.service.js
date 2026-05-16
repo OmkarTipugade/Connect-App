@@ -1,7 +1,6 @@
 const { Server } = require("socket.io");
-const { PrismaClient } = require("@prisma/client");
 const { actions } = require("../utils/actions");
-const prisma = new PrismaClient();
+const prisma = require("../prismaClient");
 
 require("@dotenvx/dotenvx").config();
 // Map to store online users -> userId and their socket IDs

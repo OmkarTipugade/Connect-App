@@ -3,12 +3,10 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const bodyParser = require("body-parser");
 const http = require("http");
-const { PrismaClient } = require("@prisma/client");
 const { initializeSocket } = require("./services/socket.service"); 
 require("@dotenvx/dotenvx").config();
 
 const app = express();
-const prisma = new PrismaClient();
 const corsOptions = {
   origin: process.env.FRONTED_URL,
   credentials: true,

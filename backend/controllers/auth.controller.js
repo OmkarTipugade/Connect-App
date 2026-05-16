@@ -1,5 +1,3 @@
-const { PrismaClient } = require("@prisma/client");
-
 const { sendEmail } = require("../services/email.service");
 const { sendOtpToPhoneNo } = require("../services/twilio.service");
 const { generateOTP } = require("../utils/otpGenerator");
@@ -7,7 +5,7 @@ const { response } = require("../utils/responseHandler");
 const { generateToken } = require("../utils/tokenGenerator");
 const { verifyOtpForPhoneNo } = require("../services/twilio.service");
 const { uploadFileToCloudinary } = require("../config/cloudinary.config");
-const prisma = new PrismaClient();
+const prisma = require("../prismaClient");
 
 const sendOtp = async (req, res) => {
   const { phone, phoneSuffix, email } = req.body;
