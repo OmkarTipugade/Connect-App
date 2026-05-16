@@ -328,11 +328,11 @@ const markMessagesAsRead = async (req, res) => {
       where: {
         id: { in: messageIds },
         receiverId: userId,
-        messageStatus: "SENT",
+        messageStatus: { in: ["SENT", "DELIVERED"] },
       },
     });
 
-    if (!messages) {
+    if (!messages.length) {
       return response(res, 200, "No unread messages found", { messages: [] });
     }
 
@@ -348,6 +348,25 @@ const markMessagesAsRead = async (req, res) => {
       },
     });
 
+    // Update unread count for each conversation
+    const conversationIds = [...new Set(messages.map(msg => msg.conversationId))];
+
+    for (const conversationId of conversationIds) {
+      const unreadMessagesInConversation = messages.filter(msg => msg.conversationId === conversationId);
+
+      await prisma.conversationParticipant.updateMany({
+        where: {
+          conversationId: conversationId,
+          userId: userId,
+        },
+        data: {
+          unreadCount: {
+            decrement: unreadMessagesInConversation.length,
+          },
+        },
+      });
+    }
+
     //notify to sender
     if (req.io && req.socketUserMap) {
       for (const message of messages) {
@@ -358,10 +377,7 @@ const markMessagesAsRead = async (req, res) => {
             messageStatus: "READ",
           });
         }
-        await prisma.message.update({
-          where: { id: message.id },
-          data: { messageStatus: "READ" },
-        });
+
       }
     }
 

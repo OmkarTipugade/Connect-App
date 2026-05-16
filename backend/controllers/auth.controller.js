@@ -11,17 +11,18 @@ const prisma = new PrismaClient();
 
 const sendOtp = async (req, res) => {
   const { phone, phoneSuffix, email } = req.body;
-  const otp = generateOTP();
+  const otp = generateOTP(); // always generate once
   const expiry = Date.now() + 5 * 60 * 1000;
 
   try {
+    // ---------------- EMAIL OTP ----------------
     if (email) {
-      // check if user exists
       let user = await prisma.user.findUnique({
         where: { email },
       });
 
       await sendEmail(email, otp); // send otp to email
+
       if (user) {
         user = await prisma.user.update({
           where: { email },
@@ -39,27 +40,41 @@ const sendOtp = async (req, res) => {
           },
         });
       }
-      return response(res, 200, "OTP sent to email", { userId: user.id, otp });
+
+      return response(res, 200, "OTP sent to email", { userId: user.id });
     }
 
     // ---------------- PHONE OTP ----------------
     if (!phone || !phoneSuffix) {
-      return response(res, 400, "Phone and phoneSuffix are required");
+      return response(res, 400, "Either email or phone with suffix is required");
     }
 
     const fullPhone = `${phoneSuffix}${phone}`;
 
-    user = await prisma.user.findFirst({
-      where: { phone: phone, phoneSuffix: phoneSuffix },
+    let user = await prisma.user.findFirst({
+      where: { phone, phoneSuffix },
     });
 
-    await sendOtpToPhoneNo(fullPhone); // Twilio service handles sending
+    await sendOtpToPhoneNo(fullPhone, otp); // pass OTP explicitly
 
-    user = await prisma.user.upsert({
-      where: { phone },
-      update: { otp, otpExpiry: new Date(expiry), phoneSuffix },
-      create: { phone, phoneSuffix, otp, otpExpiry: new Date(expiry) },
-    });
+    if (user) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          otp,
+          otpExpiry: new Date(expiry),
+        },
+      });
+    } else {
+      user = await prisma.user.create({
+        data: {
+          phone,
+          phoneSuffix,
+          otp,
+          otpExpiry: new Date(expiry),
+        },
+      });
+    }
 
     return response(res, 200, "OTP sent to phone", { userId: user.id });
   } catch (error) {
@@ -202,11 +217,8 @@ const getAllUsers = async (req, res) => {
   const loggedInUser = req.user.userId || req.user.userID;
 
   try {
-    // 1. Get all users except logged-in user
     const users = await prisma.user.findMany({
-      where: {
-        id: { not: loggedInUser },
-      },
+      where: { id: { not: loggedInUser } },
       select: {
         id: true,
         username: true,
@@ -214,35 +226,23 @@ const getAllUsers = async (req, res) => {
         lastSeen: true,
         isOnline: true,
         about: true,
-        phone: true,
-        phoneSuffix: true,
       },
     });
 
-    // 2. Attach conversations (if exists) for each user
     const usersWithConversation = await Promise.all(
       users.map(async (user) => {
-        const conversation = await prisma.conversation.findFirst({
+        const participant = await prisma.conversationParticipant.findFirst({
           where: {
-            members: {
-              some: { id: loggedInUser },
-            },
-            AND: {
-              members: {
-                some: { id: user.id },
-              },
+            userId: loggedInUser,
+            conversation: {
+              members: { some: { userId: user.id } },
             },
           },
           include: {
-            messages: {
-              orderBy: { createdAt: "desc" },
-              take: 1,
-              select: {
-                id: true,
-                content: true,
-                createdAt: true,
-                sender: true,
-                receiver: true,
+            lastMsg: {
+              include: {
+                sender: { select: { id: true, username: true } },
+                receiver: { select: { id: true, username: true } },
               },
             },
           },
@@ -250,10 +250,11 @@ const getAllUsers = async (req, res) => {
 
         return {
           ...user,
-          conversation: conversation
+          conversation: participant
             ? {
-                ...conversation,
-                lastMessage: conversation.messages[0] || null,
+                id: participant.conversationId,
+                lastMessage: participant.lastMsg,
+                unreadCount: participant.unreadCount,
               }
             : null,
         };
@@ -268,6 +269,7 @@ const getAllUsers = async (req, res) => {
     return response(res, 500, "Internal Server Error");
   }
 };
+
 
 module.exports = {
   sendOtp,
