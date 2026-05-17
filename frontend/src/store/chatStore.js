@@ -2,7 +2,6 @@ import { create } from "zustand";
 import { getSocket } from "../services/chat.service";
 import { ACTIONS } from "../utils/actions";
 import axiosInstance from "../services/url.service";
-import { m } from "framer-motion";
 
 export const useChatStore = create((set, get) => ({
   conversations: [],

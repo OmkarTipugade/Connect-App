@@ -31,7 +31,6 @@ const Sidebar = () => {
     else if (location.pathname === "/settings") setActiveTab("settings");
   }, [location.pathname, setActiveTab]);
 
-  // ✅ Hide on mobile when chat window is open
   if (isMobile && selectedContact) return null;
 
   const getIconStyle = (tab) =>
@@ -73,11 +72,11 @@ const Sidebar = () => {
 
       {/* Status */}
       <Link to="/status" className={getIconStyle("status")}>
-        <TbGradienter className="h-6 w-6" />
+        <TbGradienter className="h-6 w-6 mt-2" />
       </Link>
 
       {/* Spacer on desktop */}
-      {!isMobile && <div className="flex-grow" />}
+      {!isMobile && <div className="grow" />}
 
       {/* User Profile */}
       <Link to="/user-profile" className={getIconStyle("user-profile")}>
