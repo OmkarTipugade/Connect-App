@@ -10,16 +10,15 @@ const ChatList = ({ contacts }) => {
   const { theme } = useThemeStore();
   const { user } = useUserStore((state) => state.user);
   const setSelectedContact = useLayoutStore(
-    (state) => state.setSelectedContact
+    (state) => state.setSelectedContact,
   );
   const selectedContact = useLayoutStore((state) => state.selectedContact);
   const [searchTerms, setSearchTerms] = useState("");
   const filteredContacts = Array.isArray(contacts)
     ? contacts.filter((contact) =>
-        contact?.username?.toLowerCase().includes(searchTerms.toLowerCase())
+        contact?.username?.toLowerCase().includes(searchTerms.toLowerCase()),
       )
     : [];
-  console.log(filteredContacts);
   return (
     <div
       className={`w-full border-r h-screen ${
@@ -43,7 +42,7 @@ const ChatList = ({ contacts }) => {
         <div className="relative">
           <FaSearch
             className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${
-              theme === "dark" ? "to-gray-400" : "text-gray-800"
+              theme === "dark" ? "text-gray-400" : "text-gray-800"
             }`}
           />
           <input
@@ -58,69 +57,73 @@ const ChatList = ({ contacts }) => {
             onChange={(e) => setSearchTerms(e.target.value)}
           />
         </div>
-        <div className="overflow-y-auto h-[calc(100vh-120px)] rounded-lg mt-2">
+        <div className="overflow-y-auto h-[calc(100vh-140px)] mt-3 pr-1">
           {filteredContacts.map((contact) => (
             <motion.div
               key={contact?.id}
-              onClick={() => {
-                setSelectedContact(contact);
-              }}
-              className={`p-3 flex items-center cursor-pointer ${
-                theme === "dark"
-                  ? selectedContact?.id === contact?.id
-                    ? "bg-gray-700"
-                    : " hover:bg-gray-800"
-                  : selectedContact?.id === contact?.id
-                  ? "bg-gray-200"
-                  : "bg-gray-100"
-              }`}
+              onClick={() => setSelectedContact(contact)}
+              whileHover={{ scale: 1.01 }}
+              className={`mx-2 mb-2 p-3 rounded-2xl flex items-center gap-3 cursor-pointer transition-all duration-200
+    ${
+      theme === "dark"
+        ? selectedContact?.id === contact?.id
+          ? "bg-gray-700"
+          : "hover:bg-gray-800"
+        : selectedContact?.id === contact?.id
+          ? "bg-gray-200"
+          : "hover:bg-gray-100"
+    }
+  `}
             >
+              {/* Profile Image */}
               <img
                 src={contact?.profilePicture}
                 alt={contact?.username}
-                className="w-12 h-12 rounded-md bg-red-500"
+                className="w-14 h-14 rounded-full object-cover border border-gray-300"
               />
-              <div className="ml-3 flex-1">
-                <div className="flex justify-between items-baseline">
+
+              {/* Right Content */}
+              <div className="flex-1 min-w-0">
+                {/* Top Row */}
+                <div className="flex items-center justify-between">
                   <h2
-                    className={`font-semibold ${
-                      theme === "dark" ? "text-gray-50" : "to-gray-900"
+                    className={`font-semibold truncate text-[15px] ${
+                      theme === "dark" ? "text-white" : "text-gray-900"
                     }`}
                   >
                     {contact?.username}
                   </h2>
-                  {contact?.conversation && (
+
+                  {contact?.conversation?.lastMessage?.createdAt && (
                     <span
-                      className={`text-xs ${
-                        theme === "dark" ? "text-gray-500" : "text-gray-300"
+                      className={`text-xs whitespace-nowrap ml-2 ${
+                        theme === "dark" ? "text-gray-400" : "text-gray-500"
                       }`}
                     >
                       {formatTimestamp(
-                        contact?.conversation?.[contact.conversation.length - 1]
-                          ?.lastMsg?.createdAt
+                        contact?.conversation?.lastMessage?.createdAt,
                       )}
                     </span>
                   )}
                 </div>
-                <div>
+
+                {/* Bottom Row */}
+                <div className="flex items-center justify-between mt-1 gap-2">
                   <p
-                    className={`text-sm ${
+                    className={`text-sm truncate ${
                       theme === "dark" ? "text-gray-400" : "text-gray-500"
-                    } truncate`}
+                    }`}
                   >
-                    {contact?.conversation?.lastMsg?.content}
+                    {contact?.conversation?.lastMessage?.content ||
+                      "No messages yet"}
                   </p>
-                  {contact?.conversation &&
-                    contact?.conversation?.unreadCount > 0 &&
-                    contact?.conversation?.lastMsg?.receiver?.id ===
+
+                  {contact?.conversation?.unreadCount > 0 &&
+                    contact?.conversation?.lastMessage?.receiver?.id ===
                       user?.id && (
-                      <p
-                        className={`text-sm font-semibold w-6 h-6 flex justify-center items-center bg-yellow-500 rounded-lg ${
-                          theme === "dark" ? "text-gray-800" : "text-gray-500"
-                        } truncate`}
-                      >
+                      <div className="min-w-5.5 h-5.5 px-1 rounded-full bg-yellow-500 flex items-center justify-center text-xs font-semibold text-black">
                         {contact?.conversation?.unreadCount}
-                      </p>
+                      </div>
                     )}
                 </div>
               </div>

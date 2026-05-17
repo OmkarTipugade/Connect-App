@@ -309,7 +309,7 @@ const Login = () => {
                 <div className="relative w-1/3">
                   <button
                     type="button"
-                    className={`flex-shrink-0 z-10 inline-flex items-center py-2.5 px-4 text-sm text-center font-medium ${theme === "dark" ? "bg-gray-700" : "bg-white"
+                    className={`shrink-0 z-10 inline-flex items-center py-2.5 px-4 text-sm text-center font-medium ${theme === "dark" ? "bg-gray-700" : "bg-white"
                       } rounded-s-lg border hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200`}
                     onClick={() => setShowDropdown(!showDropdown)}
                   >
@@ -381,9 +381,9 @@ const Login = () => {
 
             {/* Divide with OR */}
             <div className="flex items-center my-4">
-              <div className="flex-grow h-px bg-gray-200" />
+              <div className="grow h-px bg-gray-200" />
               <span className="mx-2 text-gray-400 text-sm font-medium">OR</span>
-              <div className="flex-grow h-px bg-gray-200" />
+              <div className="grow h-px bg-gray-200" />
             </div>
 
             {/* Email input */}

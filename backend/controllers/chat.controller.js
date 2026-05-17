@@ -181,6 +181,8 @@ const sendMessage = async (req, res) => {
 const getConversation = async (req, res) => {
   const userId = req.user?.userID || req.user.userId;
 
+  console.log(req)
+
   try {
     // Get conversations where user is a participant
     const userParticipations = await prisma.conversationParticipant.findMany({
