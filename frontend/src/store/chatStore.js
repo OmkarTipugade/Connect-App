@@ -164,8 +164,8 @@ export const useChatStore = create((set, get) => ({
       });
 
       //mark unread messages as read when fetched
-      const {markMessagesAsRead} = get();
-        markMessagesAsRead();
+      const { markMessagesAsRead } = get();
+      markMessagesAsRead();
       return messagesArr;
     } catch (error) {
       set({
@@ -190,7 +190,7 @@ export const useChatStore = create((set, get) => ({
     if (message.conversationId === currentConversation) {
       set((state) => ({ messages: [...state.messages, message] }));
 
-      if(message.receiver?.id === currentUser?.id) {
+      if (message.receiver?.id === currentUser?.id) {
         get().markMessagesAsRead();
       }
     }
@@ -333,12 +333,14 @@ export const useChatStore = create((set, get) => ({
     return onlineUsers.get(userId)?.lastSeen;
   },
 
-  cleanup: () => set({
-    conversations: [],
-    currentConversation: null,
-    messages: [],
-    loading: false,
-    error: null,
-    onlineUsers: new Map(),
-    typingUsers: new Map(),}),
+  cleanup: () =>
+    set({
+      conversations: [],
+      currentConversation: null,
+      messages: [],
+      loading: false,
+      error: null,
+      onlineUsers: new Map(),
+      typingUsers: new Map(),
+    }),
 }));

@@ -9,6 +9,7 @@ import Status from "./pages/status/Status";
 import Settings from "./pages/settings/Settings";
 import useUserStore from "./store/UseUserStore";
 import { use, useEffect } from "react";
+import { disconnectSocket, getSocket } from "./services/chat.service";
 
 const App = () => {
 

@@ -2,7 +2,7 @@ import {io} from "socket.io-client";
 import useUserStore from "../store/UseUserStore";
 import { ACTIONS } from "../utils/actions";
 
-const socket = null;
+let socket = null;
 
 export const initializeSocket = () =>  {
     if(socket) return socket;
@@ -10,7 +10,6 @@ export const initializeSocket = () =>  {
     const user = useUserStore.getState().user;
 
     const BACKEND_URL = import.meta.env.VITE_API_BASE_URL;
-
     socket = io(BACKEND_URL, {
         withCredentials: true,
         transports: ['websocket', 'polling'], 
