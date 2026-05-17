@@ -7,8 +7,22 @@ import Home from "./components/Home";
 import UserDetails from "./components/UserDetails";
 import Status from "./pages/status/Status";
 import Settings from "./pages/settings/Settings";
+import useUserStore from "./store/UseUserStore";
+import { use, useEffect } from "react";
 
 const App = () => {
+
+  const {user}  = useUserStore();
+
+  useEffect(()=> {
+    if(user.id) {
+      const socket = getSocket();
+    }
+
+    return () => {
+      disconnectSocket();
+    }
+  }, [user])
   return (
     <>
       <ToastContainer position="top-right" autoClose={3000} />
