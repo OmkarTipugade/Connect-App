@@ -22,12 +22,12 @@ router.get(
   getMessagesOfSpecificChat
 );
 router.put("/messages/mark-as-read", authMiddleware, markMessagesAsRead);
-router.put("/messages/:messageId", authMiddleware, editMessage);
 router.put("/messages/:messageId/pin", authMiddleware, pinMessage);
-router.get("/conversations", authMiddleware, getConversation);
-router.delete("/delete-message/:messageId", authMiddleware, deleteMessage);
 router.post("/messages/:messageId/star", authMiddleware, starMessage);
 router.delete("/messages/:messageId/star", authMiddleware, unstarMessage);
+router.put("/messages/:messageId", authMiddleware, editMessage);
+router.get("/conversations", authMiddleware, getConversation);
+router.delete("/delete-message/:messageId", authMiddleware, deleteMessage);
 router.get("/starred-messages", authMiddleware, getStarredMessages);
 
 module.exports = router;
