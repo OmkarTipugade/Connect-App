@@ -137,10 +137,15 @@ export const useStatusStore = create((set, get) => ({
   },
 
   openViewer: (group, startIndex = 0) => {
+    if (!group?.statuses?.length) return;
+    const index = Math.min(
+      Math.max(0, startIndex),
+      group.statuses.length - 1,
+    );
     set({
       viewerOpen: true,
       viewerGroup: group,
-      viewerIndex: startIndex,
+      viewerIndex: index,
     });
   },
 

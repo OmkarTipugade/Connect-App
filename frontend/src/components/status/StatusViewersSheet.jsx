@@ -25,7 +25,7 @@ const StatusViewersSheet = ({ open, onClose, viewers = [] }) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-black/40 z-10"
+            className="fixed inset-0 bg-black/40 z-[60]"
             aria-label="Close viewers list"
             onClick={onClose}
           />
@@ -35,7 +35,7 @@ const StatusViewersSheet = ({ open, onClose, viewers = [] }) => {
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 28, stiffness: 320 }}
-            className="absolute bottom-0 left-0 right-0 z-20 bg-[#1f2c34] rounded-t-2xl max-h-[55vh] flex flex-col shadow-2xl"
+            className="fixed bottom-0 left-0 right-0 z-[61] bg-[#1f2c34] rounded-t-2xl max-h-[55vh] flex flex-col shadow-2xl"
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
               <div className="flex items-center gap-2 text-white">

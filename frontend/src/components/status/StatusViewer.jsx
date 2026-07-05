@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaTimes, FaTrash, FaReply, FaEye, FaChevronUp } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
@@ -140,13 +141,14 @@ const StatusViewer = () => {
     setPaused(false);
   };
 
-  return (
+  return createPortal(
     <AnimatePresence>
       <motion.div
+        key="status-viewer"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 bg-black flex flex-col relative"
+        className="fixed inset-0 z-50 bg-black flex flex-col"
       >
         <StatusProgressBar
           total={statuses.length}
@@ -226,6 +228,14 @@ const StatusViewer = () => {
               loop
             />
           )}
+
+          {!["TEXT", "IMAGE", "VIDEO"].includes(current.contentType) && (
+            <div className="w-full h-full flex items-center justify-center p-8">
+              <p className="text-white/80 text-center">
+                {current.content || "Unable to display this status"}
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="px-4 py-3 flex items-center justify-between text-white">
@@ -262,7 +272,8 @@ const StatusViewer = () => {
           viewers={viewers}
         />
       </motion.div>
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 };
 
