@@ -6,7 +6,7 @@ const prisma = require("../prismaClient");
 const createStatus = async (req, res) => {
   try {
     const { content, contentType } = req.body;
-    const userId = req.user?.userID || req.user.userId;
+    const userId = req.authUserId;
     const file = req.file;
 
     let mediaUrl = null;
@@ -133,11 +133,7 @@ const getStatuses = async (req, res) => {
 
 const viewStatus = async (req, res) => {
   const { storyId } = req.params;
-  const userId = req.user?.userID || req.user?.userId;
-
-  if (!userId) {
-    return response(res, 400, "User ID is missing");
-  }
+  const userId = req.authUserId;
 
   try {
     const status = await prisma.status.findUnique({
@@ -198,7 +194,7 @@ const viewStatus = async (req, res) => {
 
 const deleteStatus = async (req, res) => {
   const { storyId } = req.params;
-  const userId = req.user?.userId || req.user?.userID;
+  const userId = req.authUserId;
 
   try {
     const status = await prisma.status.findUnique({

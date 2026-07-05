@@ -13,8 +13,6 @@ const ProtectedRoute = () => {
   const clearUser = useUserStore((state) => state.clearUser);
 
   useEffect(() => {
-    const existingUserId = useUserStore.getState().user?.id;
-
     const verifyAuth = async () => {
       try {
         const response = await checkAuthentication();
@@ -28,12 +26,8 @@ const ProtectedRoute = () => {
         }
       } catch (error) {
         console.error("Auth check failed:", error);
-        if (existingUserId) {
-          setIsAuthed(true);
-        } else {
-          clearUser();
-          setIsAuthed(false);
-        }
+        clearUser();
+        setIsAuthed(false);
       } finally {
         setIsCheckingAuth(false);
       }

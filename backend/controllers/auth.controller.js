@@ -143,7 +143,7 @@ const verifyOtp = async (req, res) => {
 
 const updateProfile = async (req, res) => {
   const { username, about, agreed } = req.body;
-  const userId = req.user?.userID || req.user.userId;
+  const userId = req.authUserId;
 
   try {
     const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -189,7 +189,7 @@ const logout = (req, res) => {
 };
 
 const checkAuthentication = async (req, res) => {
-  const userId = req.user?.userID || req.user.userId;
+  const userId = req.authUserId;
   if (!userId) {
     return response(res, 401, "Unauthorized");
   }
@@ -210,7 +210,7 @@ const checkAuthentication = async (req, res) => {
 };
 
 const getAllUsers = async (req, res) => {
-  const loggedInUser = req.user.userId || req.user.userID;
+  const loggedInUser = req.authUserId;
 
   try {
     const users = await prisma.user.findMany({

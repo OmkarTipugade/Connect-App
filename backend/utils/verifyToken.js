@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const { getTokenUserId } = require("./authUser");
 require("@dotenvx/dotenvx").config();
 
 const verifyToken = (token) => {
@@ -10,4 +11,7 @@ const verifyToken = (token) => {
   }
 };
 
-module.exports = { verifyToken };
+/** Verify token and return the authenticated user id, or null. */
+const verifyTokenUserId = (token) => getTokenUserId(verifyToken(token));
+
+module.exports = { verifyToken, verifyTokenUserId, getTokenUserId };

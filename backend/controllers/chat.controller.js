@@ -6,7 +6,7 @@ const prisma = require("../prismaClient");
 const sendMessage = async (req, res) => {
   try {
     const { senderId, receiverId, content, messageStatus, replyToId } = req.body;
-    const authUserId = req.user?.userID || req.user.userId;
+    const authUserId = req.authUserId;
     const file = req.file;
 
     if (!senderId || !receiverId || (!content && !file)) {
@@ -189,7 +189,7 @@ const sendMessage = async (req, res) => {
 };
 
 const getConversation = async (req, res) => {
-  const userId = req.user?.userID || req.user.userId;
+  const userId = req.authUserId;
 
   try {
     // Get conversations where user is a participant
@@ -262,7 +262,7 @@ const getConversation = async (req, res) => {
 
 const getMessagesOfSpecificChat = async (req, res) => {
   const { conversationId } = req.params;
-  const userId = req.user?.userID || req.user.userId;
+  const userId = req.authUserId;
   try {
     // 1. Check if user is a participant in this conversation
     const participation = await prisma.conversationParticipant.findUnique({
@@ -340,7 +340,7 @@ const getMessagesOfSpecificChat = async (req, res) => {
 
 const markMessagesAsRead = async (req, res) => {
   const { messageIds } = req.body;
-  const userId = req.user?.userID || req.user.userId;
+  const userId = req.authUserId;
 
   try {
     // Fetch messages to ensure they belong to the user and are unread
@@ -412,7 +412,7 @@ const markMessagesAsRead = async (req, res) => {
 
 const deleteMessage = async (req, res) => {
   const { messageId } = req.params;
-  const userId = req.user?.userID || req.user.userId;
+  const userId = req.authUserId;
 
   try {
     const message = await prisma.message.findUnique({
@@ -446,7 +446,7 @@ const deleteMessage = async (req, res) => {
 
 const starMessage = async (req, res) => {
   const { messageId } = req.params;
-  const userId = req.user?.userID || req.user.userId;
+  const userId = req.authUserId;
 
   try {
     const message = await prisma.message.findUnique({ where: { id: messageId } });
@@ -472,7 +472,7 @@ const starMessage = async (req, res) => {
 
 const unstarMessage = async (req, res) => {
   const { messageId } = req.params;
-  const userId = req.user?.userID || req.user.userId;
+  const userId = req.authUserId;
 
   try {
     await prisma.starredMessage.deleteMany({
@@ -486,7 +486,7 @@ const unstarMessage = async (req, res) => {
 };
 
 const getStarredMessages = async (req, res) => {
-  const userId = req.user?.userID || req.user.userId;
+  const userId = req.authUserId;
 
   try {
     const starred = await prisma.starredMessage.findMany({
@@ -514,7 +514,7 @@ const getStarredMessages = async (req, res) => {
 const editMessage = async (req, res) => {
   const { messageId } = req.params;
   const { content } = req.body;
-  const userId = req.user?.userID || req.user.userId;
+  const userId = req.authUserId;
 
   if (!content?.trim()) return response(res, 400, "Content is required");
 
@@ -563,7 +563,7 @@ const editMessage = async (req, res) => {
 const pinMessage = async (req, res) => {
   const { messageId } = req.params;
   const { pinned } = req.body;
-  const userId = req.user?.userID || req.user.userId;
+  const userId = req.authUserId;
 
   try {
     const message = await prisma.message.findUnique({ where: { id: messageId } });

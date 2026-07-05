@@ -2,6 +2,7 @@ const { Server } = require("socket.io");
 const { parseCookie } = require("cookie");
 const { actions } = require("../utils/actions");
 const { verifyToken } = require("../utils/verifyToken");
+const { getTokenUserId } = require("../utils/authUser");
 const { socketCorsOptions } = require("../config/cors.config");
 const prisma = require("../prismaClient");
 
@@ -11,6 +12,27 @@ const onlineUsers = new Map();
 
 //Map to track which user is typing to whom
 const typingUsers = new Map();
+
+const clearConversationTyping = (typingUserId, conversationId) => {
+  if (!typingUsers.has(typingUserId)) return;
+
+  const userTyping = typingUsers.get(typingUserId);
+  userTyping[conversationId] = false;
+
+  const timeoutKey = `${conversationId}_timeout`;
+  if (userTyping[timeoutKey]) {
+    clearTimeout(userTyping[timeoutKey]);
+    delete userTyping[timeoutKey];
+  }
+};
+
+const emitTypingStop = (socket, typingUserId, conversationId, receiverId) => {
+  socket.to(receiverId).emit(actions.USER_TYPING, {
+    userId: typingUserId,
+    conversationId,
+    isTyping: false,
+  });
+};
 
 const initializeSocket = (server) => {
   const io = new Server(server, {
@@ -22,15 +44,15 @@ const initializeSocket = (server) => {
   io.on(actions.CONNECTION, (socket) => {
     const cookies = parseCookie(socket.handshake.headers.cookie || "");
     const decoded = verifyToken(cookies.auth_token);
+    const authUserId = getTokenUserId(decoded);
 
-    if (!decoded?.userID) {
+    if (!authUserId) {
       console.warn("Socket rejected: unauthenticated", socket.id);
       socket.disconnect(true);
       return;
     }
 
-    const authUserId = decoded.userID;
-    let userId = null;
+    let userId = authUserId;
 
     console.log("Client connected", socket.id, authUserId);
 
@@ -143,12 +165,8 @@ const initializeSocket = (server) => {
 
       //auto-stop after 3 sec
       userTyping[`${conversationId}_timeout`] = setTimeout(() => {
-        userTyping[conversationId] = false;
-        socket.to(receiverId).emit(actions.USER_TYPING, {
-          userId,
-          conversationId,
-          isTyping: false,
-        });
+        clearConversationTyping(userId, conversationId);
+        emitTypingStop(socket, userId, conversationId, receiverId);
       }, 3000);
 
       // Notify receiver
@@ -162,30 +180,17 @@ const initializeSocket = (server) => {
     socket.on(actions.TYPING_STOP, ({ conversationId, receiverId }) => {
       if (!userId || !conversationId || !receiverId) return;
 
-      if (typingUsers.has(userId)) {
-        const userTyping = typingUsers.get(userId);
-        userTyping[conversationId] = false;
-
-        if (userTyping[`${conversationId}_timeout`]) {
-          clearTimeout(userTyping[`${conversationId}_timeout`]);
-          delete userTyping[`${conversationId}_timeout`];
-        }
-      }
-
-      socket.to(receiverId).emit(actions.USER_TYPING, {
-        userId,
-        conversationId,
-        isTyping: false,
-      });
+      clearConversationTyping(userId, conversationId);
+      emitTypingStop(socket, userId, conversationId, receiverId);
     });
 
     //Add or update reactions on message
     socket.on(
       actions.ADD_REACTION,
-      async ({ messageId, emoji, reaction, userId: payloadUserId, reactionUserId, senderId }) => {
+      async ({ messageId, emoji, reaction }) => {
         try {
           const emojiValue = emoji || reaction;
-          const reactingUserId = reactionUserId || payloadUserId || senderId || userId;
+          const reactingUserId = authUserId;
 
           if (!messageId || !emojiValue || !reactingUserId) return;
 
