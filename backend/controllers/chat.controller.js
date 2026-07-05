@@ -5,11 +5,16 @@ const prisma = require("../prismaClient");
 
 const sendMessage = async (req, res) => {
   try {
-    const { senderId, receiverId, content, messageStatus } = req.body;
+    const { senderId, receiverId, content, messageStatus, replyToId } = req.body;
+    const authUserId = req.user?.userID || req.user.userId;
     const file = req.file;
 
     if (!senderId || !receiverId || (!content && !file)) {
       return response(res, 400, "Missing required fields");
+    }
+
+    if (senderId !== authUserId) {
+      return response(res, 403, "Cannot send message as another user");
     }
 
     //check if conversation exists between sender and receiver
@@ -94,6 +99,7 @@ const sendMessage = async (req, res) => {
         contentType,
         imageOrVideoUrl,
         messageStatus: messageStatus || "SENT",
+        replyToId: replyToId || null,
       },
     });
 
@@ -146,10 +152,14 @@ const sendMessage = async (req, res) => {
           },
         },
         reactions: {
+          select: { userId: true, messageId: true, emoji: true },
+        },
+        replyTo: {
           select: {
-            userId: true,
-            messageId: true,
-            emoji: true,
+            id: true,
+            content: true,
+            contentType: true,
+            sender: { select: { id: true, username: true } },
           },
         },
       },
@@ -180,8 +190,6 @@ const sendMessage = async (req, res) => {
 
 const getConversation = async (req, res) => {
   const userId = req.user?.userID || req.user.userId;
-
-  console.log(req)
 
   try {
     // Get conversations where user is a participant
@@ -280,6 +288,17 @@ const getMessagesOfSpecificChat = async (req, res) => {
         sender: { select: { id: true, username: true, profilePicture: true } },
         receiver: {
           select: { id: true, username: true, profilePicture: true },
+        },
+        reactions: {
+          select: { userId: true, messageId: true, emoji: true },
+        },
+        replyTo: {
+          select: {
+            id: true,
+            content: true,
+            contentType: true,
+            sender: { select: { id: true, username: true } },
+          },
         },
       },
       orderBy: { createdAt: "asc" },
@@ -424,10 +443,81 @@ const deleteMessage = async (req, res) => {
     return response(res, 500, "Internal Server Error");
   }
 };
+
+const starMessage = async (req, res) => {
+  const { messageId } = req.params;
+  const userId = req.user?.userID || req.user.userId;
+
+  try {
+    const message = await prisma.message.findUnique({ where: { id: messageId } });
+    if (!message) return response(res, 404, "Message not found");
+
+    const participation = await prisma.conversationParticipant.findUnique({
+      where: { userId_conversationId: { userId, conversationId: message.conversationId } },
+    });
+    if (!participation) return response(res, 403, "Not authorized");
+
+    const starred = await prisma.starredMessage.upsert({
+      where: { userId_messageId: { userId, messageId } },
+      create: { userId, messageId },
+      update: { starredAt: new Date() },
+    });
+
+    return response(res, 200, "Message starred", { starred });
+  } catch (error) {
+    console.error("Error in starMessage:", error);
+    return response(res, 500, "Internal Server Error");
+  }
+};
+
+const unstarMessage = async (req, res) => {
+  const { messageId } = req.params;
+  const userId = req.user?.userID || req.user.userId;
+
+  try {
+    await prisma.starredMessage.deleteMany({
+      where: { userId, messageId },
+    });
+    return response(res, 200, "Message unstarred");
+  } catch (error) {
+    console.error("Error in unstarMessage:", error);
+    return response(res, 500, "Internal Server Error");
+  }
+};
+
+const getStarredMessages = async (req, res) => {
+  const userId = req.user?.userID || req.user.userId;
+
+  try {
+    const starred = await prisma.starredMessage.findMany({
+      where: { userId },
+      include: {
+        message: {
+          include: {
+            sender: { select: { id: true, username: true, profilePicture: true } },
+            receiver: { select: { id: true, username: true, profilePicture: true } },
+          },
+        },
+      },
+      orderBy: { starredAt: "desc" },
+    });
+
+    return response(res, 200, "Starred messages fetched", {
+      messages: starred.map((s) => ({ ...s.message, starredAt: s.starredAt })),
+    });
+  } catch (error) {
+    console.error("Error in getStarredMessages:", error);
+    return response(res, 500, "Internal Server Error");
+  }
+};
+
 module.exports = {
   sendMessage,
   getConversation,
   getMessagesOfSpecificChat,
   markMessagesAsRead,
   deleteMessage,
+  starMessage,
+  unstarMessage,
+  getStarredMessages,
 };

@@ -8,7 +8,7 @@ require("@dotenvx/dotenvx").config();
 
 const app = express();
 const corsOptions = {
-  origin: process.env.FRONTED_URL,
+  origin: process.env.FRONTEND_URL,
   credentials: true,
 }
 

@@ -1,11 +1,10 @@
-import React from 'react'
+import AppShell from "../../components/AppShell";
+import StatusPage from "./StatusPage";
 
-const Status = () => {
-  return (
-    <div>
-      Status
-    </div>
-  )
-}
+const Status = () => (
+  <AppShell title="Status">
+    <StatusPage />
+  </AppShell>
+);
 
-export default Status
+export default Status;

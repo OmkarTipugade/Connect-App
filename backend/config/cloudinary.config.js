@@ -19,13 +19,27 @@ const uploadFileToCloudinary = async (file) => {
       ? cloudinary.uploader.upload_large
       : cloudinary.uploader.upload;
     uploader(file.path, options, (error, result) => {
-      fs.unlink(file.path, () => {}); // remove file from server after upload
+      fs.unlink(file.path, () => {});
       if (error) return reject(error);
       resolve(result);
     });
   });
 };
 
-const multerMiddleware = multer({ dest: "uploads/" }).single("profilePicture");
+const upload = multer({
+  dest: "uploads/",
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
+
+const multerMiddleware = (req, res, next) => {
+  upload.fields([
+    { name: "profilePicture", maxCount: 1 },
+    { name: "file", maxCount: 1 },
+  ])(req, res, (err) => {
+    if (err) return next(err);
+    req.file = req.files?.profilePicture?.[0] || req.files?.file?.[0] || null;
+    next();
+  });
+};
 
 module.exports = { uploadFileToCloudinary, multerMiddleware };

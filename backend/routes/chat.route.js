@@ -5,6 +5,9 @@ const {
   getMessagesOfSpecificChat,
   getConversation,
   deleteMessage,
+  starMessage,
+  unstarMessage,
+  getStarredMessages,
 } = require("../controllers/chat.controller");
 const authMiddleware = require("../middleware/auth.middleware");
 const { multerMiddleware } = require("../config/cloudinary.config");
@@ -19,5 +22,8 @@ router.get(
 router.put("/messages/mark-as-read", authMiddleware, markMessagesAsRead);
 router.get("/conversations", authMiddleware, getConversation);
 router.delete("/delete-message/:messageId", authMiddleware, deleteMessage);
+router.post("/messages/:messageId/star", authMiddleware, starMessage);
+router.delete("/messages/:messageId/star", authMiddleware, unstarMessage);
+router.get("/starred-messages", authMiddleware, getStarredMessages);
 
 module.exports = router;

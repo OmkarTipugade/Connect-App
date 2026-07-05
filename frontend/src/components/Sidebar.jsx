@@ -14,7 +14,7 @@ const Sidebar = () => {
   const location = useLocation();
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const { theme } = useThemeStore();
-  const { user } = useUserStore((state) => state.user); // ✅ fixed
+  const user = useUserStore((state) => state.user);
   const { activeTab, setActiveTab, selectedContact } = useLayoutStore();
 
   useEffect(() => {

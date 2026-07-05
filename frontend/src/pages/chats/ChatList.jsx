@@ -8,7 +8,7 @@ import formatTimestamp from "../../utils/formatTime";
 
 const ChatList = ({ contacts }) => {
   const { theme } = useThemeStore();
-  const { user } = useUserStore((state) => state.user);
+  const user = useUserStore((state) => state.user);
   const setSelectedContact = useLayoutStore(
     (state) => state.setSelectedContact,
   );

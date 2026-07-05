@@ -38,6 +38,7 @@ model User {
   statuses         Status[]
   statusViews      StatusView[]
   conversations    ConversationParticipant[] // through pivot
+  starredMessages  StarredMessage[]
 }
 
 model Reaction {
@@ -90,6 +91,12 @@ model Message {
 
   reactions Reaction[]
 
+  replyToId String?
+  replyTo   Message?  @relation("MessageReplies", fields: [replyToId], references: [id])
+  replies   Message[] @relation("MessageReplies")
+
+  starredBy StarredMessage[]
+
   lastMessageOf ConversationParticipant[] @relation("LastMessagePerUser")
 
   createdAt DateTime @default(now())
@@ -133,4 +140,15 @@ enum MessageStatus {
   SENT
   DELIVERED
   READ
+}
+
+model StarredMessage {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  messageId String
+  starredAt DateTime @default(now())
+
+  @@unique([userId, messageId])
 }

@@ -27,7 +27,13 @@ const initializeSocket = (server) => {
     // Handle user connection and store in onlineUsers map
     socket.on(actions.USER_CONNECTED, async (connectedUserId) => {
       try {
-        userId = connectedUserId;
+        userId =
+          typeof connectedUserId === "object"
+            ? connectedUserId?.userId
+            : connectedUserId;
+
+        if (!userId) return;
+
         onlineUsers.set(userId, socket.id);
         socket.join(userId);
 
@@ -76,12 +82,19 @@ const initializeSocket = (server) => {
     });
 
     // update messages read and notify user
-    socket.on(actions.MESSAGE_READ, async (messageIds, senderId) => {
+    socket.on(actions.MESSAGE_READ, async (payload, senderIdArg) => {
       try {
+        const messageIds = Array.isArray(payload)
+          ? payload
+          : payload?.messageIds;
+        const senderId = Array.isArray(payload) ? senderIdArg : payload?.senderId;
+
+        if (!messageIds?.length || !userId) return;
+
         await prisma.message.updateMany({
           where: {
             id: { in: messageIds },
-            receiverId: userId, // ensure only messages received by current user are marked
+            receiverId: userId,
           },
           data: { messageStatus: "READ" },
         });
@@ -92,7 +105,7 @@ const initializeSocket = (server) => {
           messageIds.forEach((messageId) => {
             io.to(senderSocketId).emit(actions.MESSAGE_STATUS_UPDATED, {
               messageId,
-              MessageStatus: "READ",
+              messageStatus: "READ",
             });
           });
         }
@@ -137,7 +150,7 @@ const initializeSocket = (server) => {
     socket.on(actions.TYPING_STOP, ({ conversationId, receiverId }) => {
       if (!userId || !conversationId || !receiverId) return;
 
-      if (!typingUsers.has(userId)) {
+      if (typingUsers.has(userId)) {
         const userTyping = typingUsers.get(userId);
         userTyping[conversationId] = false;
 
@@ -157,40 +170,41 @@ const initializeSocket = (server) => {
     //Add or update reactions on message
     socket.on(
       actions.ADD_REACTION,
-      async ({ messageId, emoji, userId, reactionUserId }) => {
+      async ({ messageId, emoji, reaction, userId: payloadUserId, reactionUserId, senderId }) => {
         try {
+          const emojiValue = emoji || reaction;
+          const reactingUserId = reactionUserId || payloadUserId || senderId || userId;
+
+          if (!messageId || !emojiValue || !reactingUserId) return;
+
           const message = await prisma.message.findFirst({
-            where: {
-              id: messageId,
-            },
+            where: { id: messageId },
           });
 
           if (!message) return;
 
-          const existingIndex = message.reactions.findIndex(
-            (r) => r.userId === reactionUserId
-          );
+          const existing = await prisma.reaction.findFirst({
+            where: { messageId, userId: reactingUserId },
+          });
 
-          if (existingIndex > -1) {
-            const existing = message.reactions(existingIndex);
-            if (existing.emoji === emoji) {
-              //remove reaction
-              message.reactions.splice(existingIndex, 1);
+          if (existing) {
+            if (existing.emoji === emojiValue) {
+              await prisma.reaction.delete({ where: { id: existing.id } });
             } else {
-              //update reaction
-              message.reactions[existingIndex].emoji = emoji;
+              await prisma.reaction.update({
+                where: { id: existing.id },
+                data: { emoji: emojiValue },
+              });
             }
           } else {
-            //add new reaction
-            message.reactions.push({
-              user: reactionUserId,
-              emoji,
+            await prisma.reaction.create({
+              data: {
+                messageId,
+                userId: reactingUserId,
+                emoji: emojiValue,
+              },
             });
           }
-          await prisma.message.update({
-            where: { id: messageId },
-            data: { reactions: message.reactions },
-          });
 
           const populatedMessage = await prisma.message.findUnique({
             where: { id: messageId },
@@ -240,8 +254,6 @@ const initializeSocket = (server) => {
               actions.REACTION_UPDATE,
               reactionUpdated
             );
-          } else {
-            console.error("No receiverSocketId found or same as sender");
           }
         } catch (error) {
           console.error("Error in ADD_REACTION:", error);

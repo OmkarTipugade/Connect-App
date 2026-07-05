@@ -110,8 +110,10 @@ const getStatuses = async (req, res) => {
         },
         viewedBy: {
           select: {
+            userId: true,
             username: true,
             profilePicture: true,
+            viewedAt: true,
           },
         },
       },
@@ -181,7 +183,7 @@ const viewStatus = async (req, res) => {
           viewers: updatedStatus.viewedBy,
         };
 
-        res.io.to(statusAdmin).emit(actions.STATUS_VIEWED, viewData);
+        req.io.to(statusAdmin).emit(actions.STATUS_VIEWED, viewData);
       }
     } else {
       console.error("Status admin not connected");

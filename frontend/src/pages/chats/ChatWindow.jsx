@@ -1,41 +1,46 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { FaSearch, FaTimes } from "react-icons/fa";
+import { toast } from "react-toastify";
 import { useChatStore } from "../../store/chatStore";
 import useUserStore from "../../store/UseUserStore";
 import useLayoutStore from "../../store/layoutStore";
-import { ACTIONS } from "../../utils/actions";
-import { getSocket } from "../../services/chat.service";
-import axiosInstance from "../../services/url.service";
+import MessageBubble from "../../components/chat/MessageBubble";
+import DateSeparator, { formatDateLabel } from "../../components/chat/DateSeparator";
+import { starMessage, unstarMessage } from "../../services/chatApi.service";
 import formatTimestamp from "../../utils/formatTime";
 
-const ChatWindow = () => {
+const ChatWindow = ({ isMobile, setSelectedContact }) => {
   const {
     messages,
-    currentConversation,
-    currentUser,
     isUserOnline,
     isUserTyping,
     onlineUsers,
     fetchMessages,
-    receiveMessage,
-    deleteMessege,
+    clearMessages,
+    sendMessage,
+    deleteMessage,
     toggleReaction,
     startTyping,
     stopTyping,
-    markMessagesAsRead,
+    requestUserStatus,
+    setCurrentConversation,
   } = useChatStore();
 
-  const { user } = useUserStore();
+  const user = useUserStore((state) => state.user);
   const selectedContact = useLayoutStore((state) => state.selectedContact);
+  const navigate = useNavigate();
   const [messageInput, setMessageInput] = useState("");
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [reactions, setReactions] = useState({});
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showSearch, setShowSearch] = useState(false);
+  const [starredIds, setStarredIds] = useState(new Set());
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
-  const socket = getSocket();
 
-  // Scroll to latest message
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -44,56 +49,29 @@ const ChatWindow = () => {
     scrollToBottom();
   }, [messages]);
 
-  // Fetch messages when contact is selected
   useEffect(() => {
     if (selectedContact?.conversation?.id) {
       fetchMessages(selectedContact.conversation.id);
+    } else if (selectedContact) {
+      clearMessages();
     }
-  }, [selectedContact, fetchMessages]);
+  }, [selectedContact?.id, selectedContact?.conversation?.id, fetchMessages, clearMessages]);
 
-  // Setup socket listeners for real-time updates
   useEffect(() => {
-    if (!socket) return;
+    if (selectedContact?.id) {
+      requestUserStatus(selectedContact.id);
+    }
+  }, [selectedContact?.id, requestUserStatus]);
 
-    socket.off(ACTIONS.RECEIVE_MESSAGE);
-    socket.on(ACTIONS.RECEIVE_MESSAGE, ({ message, conversationId }) => {
-      if (conversationId === currentConversation) {
-        receiveMessage(message);
-      }
-    });
-
-    socket.off(ACTIONS.MESSAGE_DELETED);
-    socket.on(ACTIONS.MESSAGE_DELETED, ({ messageId }) => {
-      deleteMessege(messageId);
-    });
-
-    socket.off(ACTIONS.MESSAGE_READ);
-    socket.on(ACTIONS.MESSAGE_READ, ({ messageId, messageStatus }) => {
-      // Update message status in local state
-    });
-
-    return () => {
-      socket.off(ACTIONS.RECEIVE_MESSAGE);
-      socket.off(ACTIONS.MESSAGE_DELETED);
-      socket.off(ACTIONS.MESSAGE_READ);
-    };
-  }, [socket, currentConversation, receiveMessage]);
-
-  // Get the other user in conversation (from selected contact)
   const otherUser = selectedContact || null;
 
-  // Handle file selection
   const handleFileSelect = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
       setFile(selectedFile);
-
-      // Create preview for images
       if (selectedFile.type.startsWith("image")) {
         const reader = new FileReader();
-        reader.onloadend = () => {
-          setPreview(reader.result);
-        };
+        reader.onloadend = () => setPreview(reader.result);
         reader.readAsDataURL(selectedFile);
       } else if (selectedFile.type.startsWith("video")) {
         setPreview("video");
@@ -101,10 +79,9 @@ const ChatWindow = () => {
     }
   };
 
-  // Handle send message
   const handleSendMessage = async () => {
     if (!messageInput.trim() && !file) return;
-    if (!currentConversation || !user?.id || !otherUser?.id) return;
+    if (!user?.id || !otherUser?.id) return;
 
     setLoading(true);
     try {
@@ -117,18 +94,28 @@ const ChatWindow = () => {
       if (file) {
         formData.append("file", file);
       }
+      if (replyingTo?.id) {
+        formData.append("replyToId", replyingTo.id);
+      }
 
-      const { data } = await axiosInstance.post("/chats/send", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const message = await sendMessage(formData);
 
-      if (data?.data?.message) {
-        receiveMessage(data.data.message);
+      if (message?.conversationId && !otherUser.conversation?.id) {
+        setSelectedContact?.({
+          ...otherUser,
+          conversation: {
+            id: message.conversationId,
+            lastMessage: message,
+            unreadCount: 0,
+          },
+        });
+        setCurrentConversation(message.conversationId);
       }
 
       setMessageInput("");
       setFile(null);
       setPreview(null);
+      setReplyingTo(null);
       stopTyping(otherUser.id);
     } catch (error) {
       console.error("Error sending message:", error);
@@ -137,7 +124,6 @@ const ChatWindow = () => {
     }
   };
 
-  // Handle typing indicator
   const handleInputChange = (e) => {
     setMessageInput(e.target.value);
 
@@ -152,198 +138,167 @@ const ChatWindow = () => {
     }, 1000);
   };
 
-  // Handle message delete
   const handleDeleteMessage = async (messageId) => {
-    try {
-      await axiosInstance.delete(`/chats/messages/${messageId}`);
-      deleteMessege(messageId);
-    } catch (error) {
-      console.error("Error deleting message:", error);
-    }
+    await deleteMessage(messageId);
   };
 
-  // Handle reaction
   const handleReaction = (messageId, emoji) => {
     toggleReaction(messageId, emoji);
-    setReactions((prev) => ({
-      ...prev,
-      [messageId]: emoji,
-    }));
   };
 
-  // Get message status icon
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case "SENT":
-        return "✓";
-      case "DELIVERED":
-        return "✓✓";
-      case "READ":
-        return "✓✓";
-      default:
-        return "";
+  const handleStar = async (messageId) => {
+    try {
+      if (starredIds.has(messageId)) {
+        await unstarMessage(messageId);
+        setStarredIds((prev) => {
+          const next = new Set(prev);
+          next.delete(messageId);
+          return next;
+        });
+        toast.success("Unstarred");
+      } else {
+        await starMessage(messageId);
+        setStarredIds((prev) => new Set(prev).add(messageId));
+        toast.success("Message starred");
+      }
+    } catch {
+      toast.error("Failed to update star");
     }
   };
 
-  // Get online status display
+  const filteredMessages = useMemo(() => {
+    if (!searchQuery.trim()) return messages;
+    const q = searchQuery.toLowerCase();
+    return messages.filter((m) => m.content?.toLowerCase().includes(q));
+  }, [messages, searchQuery]);
+
+  const messagesWithDates = useMemo(() => {
+    const items = [];
+    let lastDate = null;
+    for (const msg of filteredMessages) {
+      const dateLabel = formatDateLabel(msg.createdAt);
+      if (dateLabel !== lastDate) {
+        items.push({ type: "date", label: dateLabel, key: `date-${dateLabel}-${msg.id}` });
+        lastDate = dateLabel;
+      }
+      items.push({ type: "message", data: msg, key: msg.id });
+    }
+    return items;
+  }, [filteredMessages]);
+
   const getUserStatusDisplay = () => {
     if (!otherUser) return "";
     const isOnline = isUserOnline(otherUser.id);
-    if (isOnline === true) {
-      return "Online";
-    } else if (isOnline === false && onlineUsers.get(otherUser.id)?.lastSeen) {
-      return `Last seen ${formatTimestamp(onlineUsers.get(otherUser.id).lastSeen)}`;
+    if (isOnline === true) return "Online";
+    const lastSeen = onlineUsers.get(otherUser.id)?.lastSeen;
+    if (isOnline === false && lastSeen) {
+      return `Last seen ${formatTimestamp(lastSeen)}`;
     }
     return "Offline";
   };
 
   if (!selectedContact) {
     return (
-      <div className="flex items-center justify-center h-full bg-gray-50">
+      <div className="flex items-center justify-center h-full bg-gray-50 dark:bg-[#0b141a]">
         <p className="text-gray-400 text-lg">Select a conversation to start</p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full bg-white">
-      {/* Chat Header */}
-      <div className="border-b border-gray-200 p-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+    <div className="flex flex-col h-full bg-white dark:bg-[#0b141a]">
+      <div className="border-b border-gray-200 dark:border-gray-700 p-4 flex items-center gap-3">
+        {isMobile && (
+          <button
+            type="button"
+            onClick={() => setSelectedContact?.(null)}
+            className="text-gray-600 dark:text-gray-300 hover:text-gray-900"
+            aria-label="Back to chats"
+          >
+            ←
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => navigate(`/user/${otherUser.id}`)}
+          className="flex items-center gap-3 hover:opacity-80 transition"
+        >
           <img
             src={otherUser?.profilePicture || "/default-avatar.png"}
             alt={otherUser?.username}
             className="w-10 h-10 rounded-full object-cover"
           />
-          <div>
-            <h2 className="font-semibold text-gray-900">
+          <div className="text-left">
+            <h2 className="font-semibold text-gray-900 dark:text-white">
               {otherUser?.username}
             </h2>
-            <p className="text-sm text-gray-500">{getUserStatusDisplay()}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {getUserStatusDisplay()}
+            </p>
           </div>
-        </div>
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowSearch(!showSearch)}
+          className="ml-auto p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+          aria-label="Search messages"
+        >
+          <FaSearch className="w-4 h-4 text-gray-500" />
+        </button>
       </div>
 
-      {/* Messages Container */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
-        {messages.length === 0 ? (
+      {showSearch && (
+        <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-[#202c33]">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search in chat..."
+            className="w-full px-3 py-2 rounded-lg border dark:border-gray-600 dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+            autoFocus
+          />
+        </div>
+      )}
+
+      <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-gray-50 dark:bg-[#111b21]">
+        {filteredMessages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <p className="text-gray-400">
-              No messages yet. Start a conversation!
+              {searchQuery ? "No matching messages" : "No messages yet. Start a conversation!"}
             </p>
           </div>
         ) : (
-          messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${
-                message.sender?.id === user?.id
-                  ? "justify-end"
-                  : "justify-start"
-              }`}
-            >
-              <div
-                className={`max-w-xs lg:max-w-md xl:max-w-lg px-4 py-2 rounded-lg ${
-                  message.sender?.id === user?.id
-                    ? "bg-blue-500 text-white"
-                    : "bg-gray-300 text-gray-900"
-                }`}
-              >
-                {/* Message Content */}
-                {message.contentType === "TEXT" && (
-                  <p className="wrap-break-word">{message.content}</p>
-                )}
-
-                {message.contentType === "IMAGE" && message.imageOrVideoUrl && (
-                  <img
-                    src={message.imageOrVideoUrl}
-                    alt="shared"
-                    className="max-w-full rounded-lg"
-                  />
-                )}
-
-                {message.contentType === "VIDEO" && message.imageOrVideoUrl && (
-                  <video
-                    src={message.imageOrVideoUrl}
-                    controls
-                    className="max-w-full rounded-lg"
-                  />
-                )}
-
-                {/* Message Footer */}
-                <div className="flex items-center justify-between gap-2 mt-1">
-                  <span className="text-xs opacity-70">
-                    {formatTimestamp(message.createdAt)}
-                  </span>
-
-                  {message.sender?.id === user?.id && (
-                    <span
-                      className={`text-xs ${
-                        message.messageStatus === "READ"
-                          ? "font-bold"
-                          : "opacity-70"
-                      }`}
-                    >
-                      {getStatusIcon(message.messageStatus)}
-                    </span>
-                  )}
-                </div>
-
-                {/* Reactions */}
-                {message.reactions && message.reactions.length > 0 && (
-                  <div className="flex gap-1 mt-2 flex-wrap">
-                    {message.reactions.map((reaction, idx) => (
-                      <span
-                        key={idx}
-                        className="text-lg bg-white bg-opacity-30 px-2 py-1 rounded cursor-pointer hover:bg-opacity-50"
-                        onClick={() =>
-                          handleReaction(message.id, reaction.emoji)
-                        }
-                      >
-                        {reaction.emoji}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                {/* Message Actions */}
-                <div className="flex gap-2 mt-2">
-                  <button
-                    onClick={() => handleReaction(message.id, "👍")}
-                    className="text-xs opacity-50 hover:opacity-100 transition"
-                    title="React"
-                  >
-                    👍
-                  </button>
-                  {message.sender?.id === user?.id && (
-                    <button
-                      onClick={() => handleDeleteMessage(message.id)}
-                      className="text-xs opacity-50 hover:opacity-100 transition text-red-400"
-                      title="Delete"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))
+          messagesWithDates.map((item) =>
+            item.type === "date" ? (
+              <DateSeparator key={item.key} label={item.label} />
+            ) : (
+              <MessageBubble
+                key={item.key}
+                message={item.data}
+                isOwn={item.data.sender?.id === user?.id || item.data.senderId === user?.id}
+                onReaction={handleReaction}
+                onDelete={handleDeleteMessage}
+                onReply={setReplyingTo}
+                onStar={handleStar}
+                isStarred={starredIds.has(item.data.id)}
+              />
+            ),
+          )
         )}
 
-        {/* Typing Indicator */}
         {isUserTyping(otherUser?.id) && (
           <div className="flex justify-start">
-            <div className="bg-gray-300 text-gray-900 px-4 py-2 rounded-lg">
+            <div className="bg-gray-300 dark:bg-gray-700 text-gray-900 dark:text-white px-4 py-2 rounded-lg">
               <div className="flex gap-1">
-                <span className="w-2 h-2 bg-gray-600 rounded-full animate-bounce"></span>
+                <span className="w-2 h-2 bg-gray-600 rounded-full animate-bounce" />
                 <span
                   className="w-2 h-2 bg-gray-600 rounded-full animate-bounce"
                   style={{ animationDelay: "0.1s" }}
-                ></span>
+                />
                 <span
                   className="w-2 h-2 bg-gray-600 rounded-full animate-bounce"
                   style={{ animationDelay: "0.2s" }}
-                ></span>
+                />
               </div>
             </div>
           </div>
@@ -352,13 +307,25 @@ const ChatWindow = () => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* File Preview */}
+      {replyingTo && (
+        <div className="px-4 py-2 bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
+          <div className="text-sm border-l-2 border-red-500 pl-3">
+            <p className="text-red-500 font-medium">Replying to {replyingTo.sender?.username}</p>
+            <p className="opacity-70 truncate max-w-xs">{replyingTo.content}</p>
+          </div>
+          <button type="button" onClick={() => setReplyingTo(null)} className="p-1 opacity-60 hover:opacity-100">
+            <FaTimes />
+          </button>
+        </div>
+      )}
+
       {preview && (
-        <div className="px-4 py-2 bg-gray-100 border-t border-gray-200 flex items-center gap-2">
+        <div className="px-4 py-2 bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex items-center gap-2">
           {preview === "video" ? (
             <div className="flex items-center gap-2">
               <span className="text-sm">📹 {file?.name}</span>
               <button
+                type="button"
                 onClick={() => {
                   setFile(null);
                   setPreview(null);
@@ -372,6 +339,7 @@ const ChatWindow = () => {
             <div className="flex items-center gap-2">
               <img src={preview} alt="preview" className="h-12 rounded" />
               <button
+                type="button"
                 onClick={() => {
                   setFile(null);
                   setPreview(null);
@@ -385,21 +353,20 @@ const ChatWindow = () => {
         </div>
       )}
 
-      {/* Message Input */}
-      <div className="border-t border-gray-200 p-4 bg-white">
+      <div className="border-t border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-[#202c33]">
         <div className="flex gap-2">
           <input
             type="text"
             value={messageInput}
             onChange={handleInputChange}
             placeholder="Type a message..."
-            onKeyPress={(e) => {
+            onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 handleSendMessage();
               }
             }}
-            className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 border border-gray-300 dark:border-gray-600 rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 dark:bg-gray-800 dark:text-white"
           />
 
           <label className="flex items-center cursor-pointer">
@@ -409,13 +376,14 @@ const ChatWindow = () => {
               accept="image/*,video/*"
               className="hidden"
             />
-            <span className="text-xl hover:text-blue-500 transition">📎</span>
+            <span className="text-xl hover:text-red-500 transition">📎</span>
           </label>
 
           <button
+            type="button"
             onClick={handleSendMessage}
             disabled={loading || (!messageInput.trim() && !file)}
-            className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
+            className="bg-red-500 text-white px-6 py-2 rounded-full hover:bg-red-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
           >
             {loading ? "..." : "Send"}
           </button>

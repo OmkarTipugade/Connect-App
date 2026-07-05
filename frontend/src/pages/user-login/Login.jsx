@@ -148,7 +148,10 @@ const Login = () => {
         formData.append("profilePicture", selectedAvatar); // avatar URL
       }
       formData.append("about", data.about);
-      await updateUserProfile(formData);
+      const response = await updateUserProfile(formData);
+      if (response?.data?.user) {
+        setUser(response.data.user);
+      }
       toast.success("Welcome back on Connect 🎉");
       navigate("/");
       resetLoginState();
