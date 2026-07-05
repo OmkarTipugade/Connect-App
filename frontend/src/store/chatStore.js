@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { getSocket } from "../services/chat.service";
+import { getSocket, setSocketConnectHandler } from "../services/chat.service";
 import {
   deleteMessage as deleteMessageApi,
   fetchConversations as fetchConversationsApi,
@@ -7,10 +7,78 @@ import {
   markMessagesAsRead as markMessagesAsReadApi,
   sendMessage as sendMessageApi,
 } from "../services/chatApi.service";
+import { getAllUsers } from "../services/user.service";
 import { ACTIONS } from "../utils/actions";
 
 let listenersInitialized = false;
 let registeredSocket = null;
+
+const getOtherUserId = (message, currentUserId) => {
+  if (!message || !currentUserId) return null;
+  const senderId = message.senderId ?? message.sender?.id;
+  const receiverId = message.receiverId ?? message.receiver?.id;
+  if (senderId === currentUserId) return receiverId;
+  if (receiverId === currentUserId) return senderId;
+  return null;
+};
+
+const sortContactsByRecent = (contacts) =>
+  [...contacts].sort((a, b) => {
+    const aTime = a?.conversation?.lastMessage?.createdAt;
+    const bTime = b?.conversation?.lastMessage?.createdAt;
+    if (!aTime && !bTime) return 0;
+    if (!aTime) return 1;
+    if (!bTime) return -1;
+    return new Date(bTime) - new Date(aTime);
+  });
+
+const applyMessageToContacts = (contacts, message, currentUserId, activeConversationId) => {
+  const otherUserId = getOtherUserId(message, currentUserId);
+  if (!otherUserId) return contacts;
+
+  const isIncoming =
+    (message.receiverId ?? message.receiver?.id) === currentUserId;
+  const isActiveChat = message.conversationId === activeConversationId;
+
+  let found = false;
+  const updated = contacts.map((contact) => {
+    if (contact.id !== otherUserId) return contact;
+
+    found = true;
+    const prevUnread = contact.conversation?.unreadCount ?? 0;
+    let unreadCount = prevUnread;
+
+    if (isIncoming && !isActiveChat) {
+      unreadCount = prevUnread + 1;
+    } else if (isActiveChat || !isIncoming) {
+      unreadCount = isActiveChat && isIncoming ? 0 : prevUnread;
+    }
+
+    return {
+      ...contact,
+      conversation: {
+        id: message.conversationId,
+        lastMessage: message,
+        unreadCount,
+      },
+    };
+  });
+
+  return found ? sortContactsByRecent(updated) : contacts;
+};
+
+const clearUnreadForConversation = (contacts, conversationId) =>
+  contacts.map((contact) =>
+    contact.conversation?.id === conversationId
+      ? {
+          ...contact,
+          conversation: {
+            ...contact.conversation,
+            unreadCount: 0,
+          },
+        }
+      : contact,
+  );
 
 const detachSocketListeners = (socket) => {
   if (!socket) return;
@@ -24,6 +92,7 @@ const detachSocketListeners = (socket) => {
 };
 
 export const useChatStore = create((set, get) => ({
+  contacts: [],
   conversations: [],
   currentConversation: null,
   messages: [],
@@ -37,6 +106,26 @@ export const useChatStore = create((set, get) => ({
 
   setCurrentConversation: (conversationId) =>
     set({ currentConversation: conversationId }),
+
+  fetchContacts: async () => {
+    try {
+      const response = await getAllUsers();
+      if (response.status === "success") {
+        const users = Array.isArray(response.data?.users)
+          ? response.data.users
+          : [];
+        set({ contacts: sortContactsByRecent(users) });
+        users.forEach((contact) => {
+          if (contact?.id) get().requestUserStatus(contact.id);
+        });
+        get().initSocketListeners();
+        return users;
+      }
+    } catch (error) {
+      console.error("Error fetching contacts:", error);
+    }
+    return [];
+  },
 
   initSocketListeners: () => {
     const socket = getSocket();
@@ -194,27 +283,43 @@ export const useChatStore = create((set, get) => ({
     if (!message) return;
 
     const { currentConversation, currentUser, messages } = get();
-    const messageExists = messages.some((msg) => msg.id === message.id);
-    if (messageExists) return;
+    const currentUserId = currentUser?.id;
+
+    if (currentUserId) {
+      set((state) => ({
+        contacts: applyMessageToContacts(
+          state.contacts,
+          message,
+          currentUserId,
+          currentConversation,
+        ),
+      }));
+    }
+
+    if (messages.some((msg) => msg.id === message.id)) return;
 
     if (message.conversationId === currentConversation) {
       set((state) => ({ messages: [...state.messages, message] }));
 
-      if (message.receiverId === currentUser?.id || message.receiver?.id === currentUser?.id) {
+      if (
+        message.receiverId === currentUserId ||
+        message.receiver?.id === currentUserId
+      ) {
         get().markMessagesAsRead();
       }
     }
   },
 
   markMessagesAsRead: async () => {
-    const { messages, currentUser } = get();
+    const { messages, currentUser, currentConversation } = get();
     if (messages.length === 0 || !currentUser) return;
 
     const unreadMessageIds = messages
       .filter(
         (msg) =>
           msg.messageStatus !== "READ" &&
-          (msg.receiverId === currentUser.id || msg.receiver?.id === currentUser.id),
+          (msg.receiverId === currentUser.id ||
+            msg.receiver?.id === currentUser.id),
       )
       .map((msg) => msg.id)
       .filter(Boolean);
@@ -230,6 +335,9 @@ export const useChatStore = create((set, get) => ({
             ? { ...msg, messageStatus: "READ" }
             : msg,
         ),
+        contacts: currentConversation
+          ? clearUnreadForConversation(state.contacts, currentConversation)
+          : state.contacts,
       }));
 
       const socket = getSocket();
@@ -329,6 +437,7 @@ export const useChatStore = create((set, get) => ({
     detachSocketListeners(socket);
     registeredSocket = null;
     set({
+      contacts: [],
       conversations: [],
       currentConversation: null,
       messages: [],
@@ -339,3 +448,8 @@ export const useChatStore = create((set, get) => ({
     });
   },
 }));
+
+// Re-attach listeners after socket reconnects
+setSocketConnectHandler(() => {
+  useChatStore.getState().initSocketListeners();
+});

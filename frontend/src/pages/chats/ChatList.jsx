@@ -7,9 +7,10 @@ import { FaPlus, FaSearch } from "react-icons/fa";
 import { motion } from "framer-motion";
 import formatTimestamp from "../../utils/formatTime";
 
-const ChatList = ({ contacts }) => {
+const ChatList = () => {
   const { theme } = useThemeStore();
   const user = useUserStore((state) => state.user);
+  const contacts = useChatStore((state) => state.contacts);
   const setSelectedContact = useLayoutStore(
     (state) => state.setSelectedContact,
   );

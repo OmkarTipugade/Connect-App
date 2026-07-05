@@ -181,7 +181,7 @@ const sendMessage = async (req, res) => {
     });
 
     if (req.io && req.socketUserMap) {
-      const receiverSocketId = req.socketUserMap.get(receiverId);
+      const receiverSocketId = req.socketUserMap.get(String(receiverId));
       if (receiverSocketId) {
         req.io.to(receiverSocketId).emit(actions.RECEIVE_MESSAGE, {
           message: populatedMessage,
@@ -405,7 +405,7 @@ const markMessagesAsRead = async (req, res) => {
     //notify to sender
     if (req.io && req.socketUserMap) {
       for (const message of messages) {
-        const senderSocketId = req.socketUserMap.get(message.senderId);
+        const senderSocketId = req.socketUserMap.get(String(message.senderId));
         if (senderSocketId) {
           req.io.to(senderSocketId).emit(actions.MESSAGE_READ, {
             messageId: message.id,
@@ -445,7 +445,7 @@ const deleteMessage = async (req, res) => {
     });
 
     if (req.io && req.socketUserMap) {
-      const receiverSocketId = req.socketUserMap.get(message.receiverId);
+      const receiverSocketId = req.socketUserMap.get(String(message.receiverId));
       if (receiverSocketId) {
         req.io.to(receiverSocketId).emit(actions.MESSAGE_DELETED, {
           messageId: message.id,
@@ -561,8 +561,8 @@ const editMessage = async (req, res) => {
     });
 
     if (req.io && req.socketUserMap) {
-      const receiverSocketId = req.socketUserMap.get(message.receiverId);
-      const senderSocketId = req.socketUserMap.get(message.senderId);
+      const receiverSocketId = req.socketUserMap.get(String(message.receiverId));
+      const senderSocketId = req.socketUserMap.get(String(message.senderId));
       const payload = { messageId, message: updated };
       if (receiverSocketId) req.io.to(receiverSocketId).emit(actions.MESSAGE_EDITED, payload);
       if (senderSocketId) req.io.to(senderSocketId).emit(actions.MESSAGE_EDITED, payload);

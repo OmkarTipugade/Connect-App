@@ -10,6 +10,9 @@ require("@dotenvx/dotenvx").config();
 // Map to store online users -> userId and their socket IDs
 const onlineUsers = new Map();
 
+const socketIdForUser = (userId) =>
+  userId != null ? onlineUsers.get(String(userId)) : undefined;
+
 //Map to track which user is typing to whom
 const typingUsers = new Map();
 
@@ -68,8 +71,8 @@ const initializeSocket = (server) => {
           return;
         }
 
-        onlineUsers.set(userId, socket.id);
-        socket.join(userId);
+        onlineUsers.set(String(userId), socket.id);
+        socket.join(String(userId));
 
         // Update user's isOnline status in DB (preserve lastSeen while online)
         const user = await prisma.user.update({
@@ -90,7 +93,7 @@ const initializeSocket = (server) => {
 
     // Return online status of requested users
     socket.on(actions.GET_USER_STATUS, async (requestedUserId, callback) => {
-      const isOnline = onlineUsers.has(requestedUserId);
+      const isOnline = onlineUsers.has(String(requestedUserId));
       let lastSeen = null;
 
       if (!isOnline) {
@@ -106,7 +109,7 @@ const initializeSocket = (server) => {
 
     socket.on(actions.SEND_MESSAGE, (message) => {
       try {
-        const receiverSocketId = onlineUsers.get(message.receiver?.id);
+        const receiverSocketId = socketIdForUser(message.receiver?.id);
 
         if (receiverSocketId) {
           io.to(receiverSocketId).emit(actions.RECEIVE_MESSAGE, message);
@@ -137,7 +140,7 @@ const initializeSocket = (server) => {
           data: { messageStatus: "READ" },
         });
 
-        const senderSocketId = onlineUsers.get(senderId);
+        const senderSocketId = socketIdForUser(senderId);
 
         if (senderSocketId) {
           messageIds.forEach((messageId) => {
@@ -259,9 +262,9 @@ const initializeSocket = (server) => {
             reactions: populatedMessage.reactions,
           };
 
-          const senderSocketId = onlineUsers.get(populatedMessage.sender.id);
-          const receiverSocketId = onlineUsers.get(
-            populatedMessage.receiver.id
+          const senderSocketId = socketIdForUser(populatedMessage.sender.id);
+          const receiverSocketId = socketIdForUser(
+            populatedMessage.receiver.id,
           );
 
           if (senderSocketId) {
@@ -287,7 +290,7 @@ const initializeSocket = (server) => {
       if (!userId) return;
 
       try {
-        onlineUsers.delete(userId);
+        onlineUsers.delete(String(userId));
 
         // clear all typing timeouts
         if (typingUsers.has(userId)) {

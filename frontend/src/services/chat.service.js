@@ -4,8 +4,13 @@ import { ACTIONS } from "../utils/actions";
 import { API_BASE_URL } from "./url.service";
 
 let socket = null;
+let onConnectHandler = null;
 
 const getSocketUrl = () => API_BASE_URL || window.location.origin;
+
+export const setSocketConnectHandler = (handler) => {
+  onConnectHandler = handler;
+};
 
 export const initializeSocket = () => {
   if (socket?.connected) return socket;
@@ -15,8 +20,6 @@ export const initializeSocket = () => {
     return socket;
   }
 
-  const user = useUserStore.getState().user;
-
   socket = io(getSocketUrl(), {
     withCredentials: true,
     transports: ["websocket", "polling"],
@@ -25,9 +28,11 @@ export const initializeSocket = () => {
   });
 
   socket.on("connect", () => {
+    const user = useUserStore.getState().user;
     if (user?.id) {
       socket.emit(ACTIONS.USER_CONNECTED, user.id);
     }
+    onConnectHandler?.();
   });
 
   socket.on(ACTIONS.CONNECT_ERROR, (err) => {

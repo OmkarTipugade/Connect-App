@@ -184,7 +184,7 @@ const StatusViewer = () => {
           onTouchEnd={() => setPaused(false)}
         >
           {current.contentType === "TEXT" && (
-            <div className="w-full h-full flex items-center justify-center p-8 bg-gradient-to-br from-red-600 via-purple-700 to-indigo-800">
+            <div className="w-full h-full flex items-center justify-center p-8 bg-linear-to-br from-red-600 via-purple-700 to-indigo-800">
               <p className="text-white text-2xl md:text-3xl text-center font-medium leading-relaxed max-w-lg">
                 {current.content}
               </p>
