@@ -11,6 +11,11 @@ require("@dotenvx/dotenvx").config();
 
 const app = express();
 
+// Render/Heroku/nginx sit behind a reverse proxy and set X-Forwarded-For
+if (process.env.NODE_ENV === "production" || process.env.RENDER) {
+  app.set("trust proxy", 1);
+}
+
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(cors(corsOptions));
 app.use(apiLimiter);
