@@ -88,6 +88,8 @@ model Message {
   content         String?
   contentType     ContentType   @default(TEXT)
   messageStatus   MessageStatus @default(SENT)
+  isPinned        Boolean       @default(false)
+  editedAt        DateTime?
 
   reactions Reaction[]
 

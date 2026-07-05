@@ -3,6 +3,7 @@ const { sendOtpToPhoneNo } = require("../services/twilio.service");
 const { generateOTP } = require("../utils/otpGenerator");
 const { response } = require("../utils/responseHandler");
 const { generateToken } = require("../utils/tokenGenerator");
+const { authCookieOptions } = require("../utils/cookieOptions");
 const { verifyOtpForPhoneNo } = require("../services/twilio.service");
 const { uploadFileToCloudinary } = require("../config/cloudinary.config");
 const prisma = require("../prismaClient");
@@ -131,10 +132,7 @@ const verifyOtp = async (req, res) => {
 
     // Generate JWT
     const token = generateToken(user?.id);
-    res.cookie("auth_token", token, {
-      httpOnly: true,
-      maxAge: 365 * 24 * 60 * 60 * 1000,
-    });
+    res.cookie("auth_token", token, authCookieOptions);
 
     return response(res, 200, "OTP verified", { token, user });
   } catch (error) {

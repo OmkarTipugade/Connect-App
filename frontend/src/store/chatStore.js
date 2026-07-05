@@ -38,6 +38,7 @@ export const useChatStore = create((set, get) => ({
     socket.off(ACTIONS.REACTION_UPDATE);
     socket.off(ACTIONS.MESSAGE_DELETED);
     socket.off(ACTIONS.USER_STATUS_UPDATE);
+    socket.off(ACTIONS.MESSAGE_EDITED);
 
     socket.on(ACTIONS.RECEIVE_MESSAGE, (payload) => {
       const message = payload?.message ?? payload;
@@ -64,6 +65,15 @@ export const useChatStore = create((set, get) => ({
     socket.on(ACTIONS.MESSAGE_DELETED, ({ messageId }) => {
       set((state) => ({
         messages: state.messages.filter((msg) => msg.id !== messageId),
+      }));
+    });
+
+    socket.on(ACTIONS.MESSAGE_EDITED, ({ message }) => {
+      if (!message?.id) return;
+      set((state) => ({
+        messages: state.messages.map((msg) =>
+          msg.id === message.id ? { ...msg, ...message } : msg,
+        ),
       }));
     });
 

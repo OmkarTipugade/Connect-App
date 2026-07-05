@@ -25,3 +25,9 @@ export const unstarMessage = (messageId) =>
 
 export const fetchStarredMessages = () =>
   axiosInstance.get("/api/chat/starred-messages");
+
+export const editMessage = (messageId, content) =>
+  axiosInstance.put(`/api/chat/messages/${messageId}`, { content });
+
+export const pinMessage = (messageId, pinned) =>
+  axiosInstance.put(`/api/chat/messages/${messageId}/pin`, { pinned });

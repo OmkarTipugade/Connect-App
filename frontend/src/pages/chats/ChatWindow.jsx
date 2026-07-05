@@ -1,13 +1,20 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaSearch, FaTimes } from "react-icons/fa";
+import { FaSearch, FaTimes, FaImages, FaChevronDown } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { useChatStore } from "../../store/chatStore";
 import useUserStore from "../../store/UseUserStore";
 import useLayoutStore from "../../store/layoutStore";
 import MessageBubble from "../../components/chat/MessageBubble";
 import DateSeparator, { formatDateLabel } from "../../components/chat/DateSeparator";
-import { starMessage, unstarMessage } from "../../services/chatApi.service";
+import ForwardMessageModal from "../../components/chat/ForwardMessageModal";
+import MediaGalleryModal from "../../components/chat/MediaGalleryModal";
+import {
+  starMessage,
+  unstarMessage,
+  editMessage as editMessageApi,
+  pinMessage as pinMessageApi,
+} from "../../services/chatApi.service";
 import formatTimestamp from "../../utils/formatTime";
 
 const ChatWindow = ({ isMobile, setSelectedContact }) => {
@@ -38,7 +45,12 @@ const ChatWindow = ({ isMobile, setSelectedContact }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [starredIds, setStarredIds] = useState(new Set());
+  const [forwardMessage, setForwardMessage] = useState(null);
+  const [showMediaGallery, setShowMediaGallery] = useState(false);
+  const [editingMessage, setEditingMessage] = useState(null);
+  const [showScrollDown, setShowScrollDown] = useState(false);
   const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -48,6 +60,18 @@ const ChatWindow = ({ isMobile, setSelectedContact }) => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const handleScroll = () => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    setShowScrollDown(distanceFromBottom > 200);
+  };
+
+  const pinnedMessage = useMemo(
+    () => messages.find((m) => m.isPinned),
+    [messages],
+  );
 
   useEffect(() => {
     if (selectedContact?.conversation?.id) {
@@ -79,7 +103,85 @@ const ChatWindow = ({ isMobile, setSelectedContact }) => {
     }
   };
 
+  const handleStar = async (messageId) => {
+    try {
+      if (starredIds.has(messageId)) {
+        await unstarMessage(messageId);
+        setStarredIds((prev) => {
+          const next = new Set(prev);
+          next.delete(messageId);
+          return next;
+        });
+        toast.success("Unstarred");
+      } else {
+        await starMessage(messageId);
+        setStarredIds((prev) => new Set(prev).add(messageId));
+        toast.success("Message starred");
+      }
+    } catch {
+      toast.error("Failed to update star");
+    }
+  };
+
+  const handleForward = async (contact, message) => {
+    const formData = new FormData();
+    formData.append("senderId", user.id);
+    formData.append("receiverId", contact.id);
+    const label = message.contentType === "TEXT"
+      ? message.content
+      : `[${message.contentType}]`;
+    formData.append("content", `↪ Forwarded: ${label}`);
+    formData.append("messageStatus", "SENT");
+    await sendMessage(formData);
+    toast.success(`Forwarded to ${contact.username}`);
+  };
+
+  const handleEdit = (message) => {
+    setEditingMessage(message);
+    setMessageInput(message.content || "");
+  };
+
+  const handlePin = async (message) => {
+    try {
+      const pinned = !message.isPinned;
+      await pinMessageApi(message.id, pinned);
+      useChatStore.setState((state) => ({
+        messages: state.messages.map((m) => ({
+          ...m,
+          isPinned: m.id === message.id ? pinned : pinned ? false : m.isPinned,
+        })),
+      }));
+      toast.success(pinned ? "Message pinned" : "Message unpinned");
+    } catch {
+      toast.error("Failed to pin message");
+    }
+  };
+
   const handleSendMessage = async () => {
+    if (editingMessage) {
+      if (!messageInput.trim()) return;
+      setLoading(true);
+      try {
+        const { data } = await editMessageApi(editingMessage.id, messageInput.trim());
+        const updated = data?.data?.message;
+        if (updated) {
+          useChatStore.setState((state) => ({
+            messages: state.messages.map((m) =>
+              m.id === updated.id ? { ...m, ...updated } : m,
+            ),
+          }));
+        }
+        setEditingMessage(null);
+        setMessageInput("");
+        toast.success("Message edited");
+      } catch {
+        toast.error("Failed to edit message");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     if (!messageInput.trim() && !file) return;
     if (!user?.id || !otherUser?.id) return;
 
@@ -144,26 +246,6 @@ const ChatWindow = ({ isMobile, setSelectedContact }) => {
 
   const handleReaction = (messageId, emoji) => {
     toggleReaction(messageId, emoji);
-  };
-
-  const handleStar = async (messageId) => {
-    try {
-      if (starredIds.has(messageId)) {
-        await unstarMessage(messageId);
-        setStarredIds((prev) => {
-          const next = new Set(prev);
-          next.delete(messageId);
-          return next;
-        });
-        toast.success("Unstarred");
-      } else {
-        await starMessage(messageId);
-        setStarredIds((prev) => new Set(prev).add(messageId));
-        toast.success("Message starred");
-      }
-    } catch {
-      toast.error("Failed to update star");
-    }
   };
 
   const filteredMessages = useMemo(() => {
@@ -239,13 +321,30 @@ const ChatWindow = ({ isMobile, setSelectedContact }) => {
         </button>
         <button
           type="button"
+          onClick={() => setShowMediaGallery(true)}
+          className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+          aria-label="Media gallery"
+        >
+          <FaImages className="w-4 h-4 text-gray-500" />
+        </button>
+        <button
+          type="button"
           onClick={() => setShowSearch(!showSearch)}
-          className="ml-auto p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+          className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition"
           aria-label="Search messages"
         >
           <FaSearch className="w-4 h-4 text-gray-500" />
         </button>
       </div>
+
+      {pinnedMessage && (
+        <div className="px-4 py-2 bg-yellow-500/10 border-b border-yellow-500/30 flex items-center gap-2 text-sm">
+          <span className="text-yellow-500">📌</span>
+          <p className="truncate flex-1 opacity-80">
+            {pinnedMessage.content || `[${pinnedMessage.contentType}]`}
+          </p>
+        </div>
+      )}
 
       {showSearch && (
         <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-[#202c33]">
@@ -260,7 +359,11 @@ const ChatWindow = ({ isMobile, setSelectedContact }) => {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-gray-50 dark:bg-[#111b21]">
+      <div
+        ref={messagesContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto p-4 space-y-2 bg-gray-50 dark:bg-[#111b21] relative"
+      >
         {filteredMessages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <p className="text-gray-400">
@@ -280,6 +383,9 @@ const ChatWindow = ({ isMobile, setSelectedContact }) => {
                 onDelete={handleDeleteMessage}
                 onReply={setReplyingTo}
                 onStar={handleStar}
+                onForward={setForwardMessage}
+                onEdit={handleEdit}
+                onPin={handlePin}
                 isStarred={starredIds.has(item.data.id)}
               />
             ),
@@ -305,7 +411,27 @@ const ChatWindow = ({ isMobile, setSelectedContact }) => {
         )}
 
         <div ref={messagesEndRef} />
+
+        {showScrollDown && (
+          <button
+            type="button"
+            onClick={scrollToBottom}
+            className="fixed bottom-24 right-8 p-3 bg-red-500 text-white rounded-full shadow-lg hover:bg-red-600 transition z-10"
+            aria-label="Jump to latest"
+          >
+            <FaChevronDown />
+          </button>
+        )}
       </div>
+
+      {editingMessage && (
+        <div className="px-4 py-2 bg-blue-500/10 border-t border-blue-500/30 flex items-center justify-between text-sm">
+          <p className="text-blue-500 font-medium">Editing message</p>
+          <button type="button" onClick={() => { setEditingMessage(null); setMessageInput(""); }} className="p-1 opacity-60 hover:opacity-100">
+            <FaTimes />
+          </button>
+        </div>
+      )}
 
       {replyingTo && (
         <div className="px-4 py-2 bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
@@ -359,7 +485,7 @@ const ChatWindow = ({ isMobile, setSelectedContact }) => {
             type="text"
             value={messageInput}
             onChange={handleInputChange}
-            placeholder="Type a message..."
+            placeholder={editingMessage ? "Edit message..." : "Type a message..."}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
@@ -385,10 +511,22 @@ const ChatWindow = ({ isMobile, setSelectedContact }) => {
             disabled={loading || (!messageInput.trim() && !file)}
             className="bg-red-500 text-white px-6 py-2 rounded-full hover:bg-red-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
           >
-            {loading ? "..." : "Send"}
+            {loading ? "..." : editingMessage ? "Save" : "Send"}
           </button>
         </div>
       </div>
+
+      <ForwardMessageModal
+        message={forwardMessage}
+        open={Boolean(forwardMessage)}
+        onClose={() => setForwardMessage(null)}
+        onForward={handleForward}
+      />
+      <MediaGalleryModal
+        messages={messages}
+        open={showMediaGallery}
+        onClose={() => setShowMediaGallery(false)}
+      />
     </div>
   );
 };

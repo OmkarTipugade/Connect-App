@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const { response } = require("../utils/responseHandler");
+const { verifyToken } = require("../utils/verifyToken");
 require("@dotenvx/dotenvx").config();
 
 const authMiddleware = (req, res, next) => {
@@ -8,14 +9,11 @@ const authMiddleware = (req, res, next) => {
   if (!auth_token)
     return response(res, 401, "Authentication token is missing");
 
-  try {
-    const decoded = jwt.verify(auth_token, process.env.JWT_SECRET_KEY);
-    req.user = decoded;
-    next();
-  } catch (error) {
-    console.error("Error in auth middleware:", error);
-    return response(res, 401, "Invalid or expired token");
-  }
+  const decoded = verifyToken(auth_token);
+  if (!decoded) return response(res, 401, "Invalid or expired token");
+
+  req.user = decoded;
+  next();
 };
 
 module.exports = authMiddleware;

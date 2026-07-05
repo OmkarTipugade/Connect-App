@@ -8,6 +8,8 @@ const {
   starMessage,
   unstarMessage,
   getStarredMessages,
+  editMessage,
+  pinMessage,
 } = require("../controllers/chat.controller");
 const authMiddleware = require("../middleware/auth.middleware");
 const { multerMiddleware } = require("../config/cloudinary.config");
@@ -20,6 +22,8 @@ router.get(
   getMessagesOfSpecificChat
 );
 router.put("/messages/mark-as-read", authMiddleware, markMessagesAsRead);
+router.put("/messages/:messageId", authMiddleware, editMessage);
+router.put("/messages/:messageId/pin", authMiddleware, pinMessage);
 router.get("/conversations", authMiddleware, getConversation);
 router.delete("/delete-message/:messageId", authMiddleware, deleteMessage);
 router.post("/messages/:messageId/star", authMiddleware, starMessage);

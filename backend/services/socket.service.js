@@ -1,5 +1,7 @@
 const { Server } = require("socket.io");
+const cookie = require("cookie");
 const { actions } = require("../utils/actions");
+const { verifyToken } = require("../utils/verifyToken");
 const prisma = require("../prismaClient");
 
 require("@dotenvx/dotenvx").config();
@@ -21,10 +23,20 @@ const initializeSocket = (server) => {
 
   // When new  socket connection is established
   io.on(actions.CONNECTION, (socket) => {
-    console.log("New client connected", socket.id);
+    const cookies = cookie.parse(socket.handshake.headers.cookie || "");
+    const decoded = verifyToken(cookies.auth_token);
+
+    if (!decoded?.userID) {
+      console.warn("Socket rejected: unauthenticated", socket.id);
+      socket.disconnect(true);
+      return;
+    }
+
+    const authUserId = decoded.userID;
     let userId = null;
 
-    // Handle user connection and store in onlineUsers map
+    console.log("Client connected", socket.id, authUserId);
+
     socket.on(actions.USER_CONNECTED, async (connectedUserId) => {
       try {
         userId =
@@ -32,7 +44,10 @@ const initializeSocket = (server) => {
             ? connectedUserId?.userId
             : connectedUserId;
 
-        if (!userId) return;
+        if (!userId || userId !== authUserId) {
+          console.warn("Socket USER_CONNECTED rejected: user mismatch");
+          return;
+        }
 
         onlineUsers.set(userId, socket.id);
         socket.join(userId);

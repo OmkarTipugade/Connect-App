@@ -9,10 +9,11 @@ const {
 } = require("../controllers/auth.controller");
 const authMiddleware = require("../middleware/auth.middleware");
 const { multerMiddleware } = require("../config/cloudinary.config");
+const { otpLimiter } = require("../middleware/rateLimit.middleware");
 const router = express.Router();
 
-router.post("/send-otp", sendOtp);
-router.post("/verify-otp", verifyOtp);
+router.post("/send-otp", otpLimiter, sendOtp);
+router.post("/verify-otp", otpLimiter, verifyOtp);
 router.get("/logout", authMiddleware, logout);
 
 // protected route

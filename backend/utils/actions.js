@@ -19,6 +19,7 @@ const actions = {
   MESSAGE_READ: "message_read",
   MESSAGE_STATUS_UPDATED: "message_status_updated",
   MESSAGE_DELETED: "message_deleted",
+  MESSAGE_EDITED: "message_edited",
 
   ADD_REACTION: "add_reaction",
   REACTION_UPDATE: "reaction_update",

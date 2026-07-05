@@ -511,6 +511,90 @@ const getStarredMessages = async (req, res) => {
   }
 };
 
+const editMessage = async (req, res) => {
+  const { messageId } = req.params;
+  const { content } = req.body;
+  const userId = req.user?.userID || req.user.userId;
+
+  if (!content?.trim()) return response(res, 400, "Content is required");
+
+  try {
+    const message = await prisma.message.findUnique({ where: { id: messageId } });
+    if (!message) return response(res, 404, "Message not found");
+    if (message.senderId !== userId) return response(res, 403, "Not authorized");
+    if (message.contentType !== "TEXT") return response(res, 400, "Only text messages can be edited");
+
+    const ageMs = Date.now() - new Date(message.createdAt).getTime();
+    if (ageMs > 15 * 60 * 1000) return response(res, 400, "Edit window expired (15 minutes)");
+
+    const updated = await prisma.message.update({
+      where: { id: messageId },
+      data: { content: content.trim(), editedAt: new Date() },
+      include: {
+        sender: { select: { id: true, username: true, profilePicture: true } },
+        receiver: { select: { id: true, username: true, profilePicture: true } },
+        reactions: { select: { userId: true, messageId: true, emoji: true } },
+        replyTo: {
+          select: {
+            id: true,
+            content: true,
+            contentType: true,
+            sender: { select: { id: true, username: true } },
+          },
+        },
+      },
+    });
+
+    if (req.io && req.socketUserMap) {
+      const receiverSocketId = req.socketUserMap.get(message.receiverId);
+      const senderSocketId = req.socketUserMap.get(message.senderId);
+      const payload = { messageId, message: updated };
+      if (receiverSocketId) req.io.to(receiverSocketId).emit(actions.MESSAGE_EDITED, payload);
+      if (senderSocketId) req.io.to(senderSocketId).emit(actions.MESSAGE_EDITED, payload);
+    }
+
+    return response(res, 200, "Message edited", { message: updated });
+  } catch (error) {
+    console.error("Error in editMessage:", error);
+    return response(res, 500, "Internal Server Error");
+  }
+};
+
+const pinMessage = async (req, res) => {
+  const { messageId } = req.params;
+  const { pinned } = req.body;
+  const userId = req.user?.userID || req.user.userId;
+
+  try {
+    const message = await prisma.message.findUnique({ where: { id: messageId } });
+    if (!message) return response(res, 404, "Message not found");
+
+    const participation = await prisma.conversationParticipant.findUnique({
+      where: { userId_conversationId: { userId, conversationId: message.conversationId } },
+    });
+    if (!participation) return response(res, 403, "Not authorized");
+
+    if (pinned) {
+      await prisma.message.updateMany({
+        where: { conversationId: message.conversationId, isPinned: true },
+        data: { isPinned: false },
+      });
+    }
+
+    const updated = await prisma.message.update({
+      where: { id: messageId },
+      data: { isPinned: Boolean(pinned) },
+    });
+
+    return response(res, 200, pinned ? "Message pinned" : "Message unpinned", {
+      message: updated,
+    });
+  } catch (error) {
+    console.error("Error in pinMessage:", error);
+    return response(res, 500, "Internal Server Error");
+  }
+};
+
 module.exports = {
   sendMessage,
   getConversation,
@@ -520,4 +604,6 @@ module.exports = {
   starMessage,
   unstarMessage,
   getStarredMessages,
+  editMessage,
+  pinMessage,
 };
