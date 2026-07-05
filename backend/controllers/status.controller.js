@@ -152,12 +152,17 @@ const viewStatus = async (req, res) => {
     });
 
     if (!alreadyViewed) {
+      const viewer = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { username: true, profilePicture: true },
+      });
+
       await prisma.statusView.create({
         data: {
           statusId: storyId,
           userId: userId,
-          username: req.user?.username || null,
-          profilePicture: req.user?.profilePicture || null,
+          username: viewer?.username || null,
+          profilePicture: viewer?.profilePicture || null,
         },
       });
     }

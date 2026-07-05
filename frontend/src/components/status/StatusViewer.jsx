@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaTimes, FaTrash, FaReply } from "react-icons/fa";
+import { FaTimes, FaTrash, FaReply, FaEye, FaChevronUp } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import {
   STATUS_DURATION_MS,
@@ -10,6 +10,7 @@ import useUserStore from "../../store/UseUserStore";
 import useLayoutStore from "../../store/layoutStore";
 import { useChatStore } from "../../store/chatStore";
 import StatusProgressBar from "./StatusProgressBar";
+import StatusViewersSheet from "./StatusViewersSheet";
 import formatTimestamp from "../../utils/formatTime";
 
 const StatusViewer = () => {
@@ -31,6 +32,7 @@ const StatusViewer = () => {
 
   const [progress, setProgress] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [viewersOpen, setViewersOpen] = useState(false);
   const timerRef = useRef(null);
   const startRef = useRef(Date.now());
   const viewedRef = useRef(new Set());
@@ -38,6 +40,10 @@ const StatusViewer = () => {
   const statuses = viewerGroup?.statuses ?? [];
   const current = statuses[viewerIndex];
   const isOwn = viewerGroup?.userId === user?.id;
+
+  useEffect(() => {
+    setViewersOpen(false);
+  }, [viewerIndex, current?.id]);
 
   useEffect(() => {
     if (!viewerOpen || !current?.id) return;
@@ -49,7 +55,7 @@ const StatusViewer = () => {
   }, [viewerOpen, current?.id, isOwn, markStatusViewed]);
 
   useEffect(() => {
-    if (!viewerOpen || paused || !current) return;
+    if (!viewerOpen || paused || viewersOpen || !current) return;
 
     startRef.current = Date.now();
     setProgress(0);
@@ -69,7 +75,7 @@ const StatusViewer = () => {
     }, 50);
 
     return () => clearInterval(timerRef.current);
-  }, [viewerOpen, viewerIndex, paused, current?.id, statuses.length, setViewerIndex, closeViewer]);
+  }, [viewerOpen, viewerIndex, paused, viewersOpen, current?.id, statuses.length, setViewerIndex, closeViewer]);
 
   const goNext = () => {
     if (viewerIndex < statuses.length - 1) {
@@ -122,6 +128,17 @@ const StatusViewer = () => {
   if (!viewerOpen || !viewerGroup || !current) return null;
 
   const viewerCount = current.viewedBy?.length ?? 0;
+  const viewers = current.viewedBy ?? [];
+
+  const openViewers = () => {
+    setPaused(true);
+    setViewersOpen(true);
+  };
+
+  const closeViewers = () => {
+    setViewersOpen(false);
+    setPaused(false);
+  };
 
   return (
     <AnimatePresence>
@@ -129,7 +146,7 @@ const StatusViewer = () => {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 bg-black flex flex-col"
+        className="fixed inset-0 z-50 bg-black flex flex-col relative"
       >
         <StatusProgressBar
           total={statuses.length}
@@ -213,9 +230,17 @@ const StatusViewer = () => {
 
         <div className="px-4 py-3 flex items-center justify-between text-white">
           {isOwn ? (
-            <p className="text-sm text-white/70">
-              {viewerCount} view{viewerCount !== 1 ? "s" : ""}
-            </p>
+            <button
+              type="button"
+              onClick={openViewers}
+              className="flex items-center gap-2 px-3 py-2 rounded-full bg-white/10 hover:bg-white/20 transition text-sm"
+            >
+              <FaEye className="w-3.5 h-3.5" />
+              <span>
+                {viewerCount} view{viewerCount !== 1 ? "s" : ""}
+              </span>
+              <FaChevronUp className="w-3 h-3 opacity-70" />
+            </button>
           ) : (
             <button
               type="button"
@@ -230,6 +255,12 @@ const StatusViewer = () => {
             Expires {formatTimestamp(current.expiresAt)}
           </p>
         </div>
+
+        <StatusViewersSheet
+          open={viewersOpen && isOwn}
+          onClose={closeViewers}
+          viewers={viewers}
+        />
       </motion.div>
     </AnimatePresence>
   );

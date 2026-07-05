@@ -80,17 +80,36 @@ export const useStatusStore = create((set, get) => ({
     });
 
     socket.on(ACTIONS.STATUS_VIEWED, ({ statusId, viewers, totalViewers }) => {
-      set((state) => ({
-        statuses: state.statuses.map((s) =>
+      set((state) => {
+        const nextViewers = viewers ?? undefined;
+        const statuses = state.statuses.map((s) =>
           s.id === statusId
             ? {
                 ...s,
-                viewedBy: viewers || s.viewedBy,
+                viewedBy: nextViewers ?? s.viewedBy,
                 _viewerCount: totalViewers,
               }
             : s,
-        ),
-      }));
+        );
+
+        let viewerGroup = state.viewerGroup;
+        if (viewerGroup?.statuses?.some((s) => s.id === statusId)) {
+          viewerGroup = {
+            ...viewerGroup,
+            statuses: viewerGroup.statuses.map((s) =>
+              s.id === statusId
+                ? {
+                    ...s,
+                    viewedBy: nextViewers ?? s.viewedBy,
+                    _viewerCount: totalViewers,
+                  }
+                : s,
+            ),
+          };
+        }
+
+        return { statuses, viewerGroup };
+      });
     });
 
     socket.on(ACTIONS.STATUS_DELETED, (storyId) => {
@@ -139,11 +158,23 @@ export const useStatusStore = create((set, get) => ({
       const { data } = await viewStatusApi(statusId);
       const updated = data?.data ?? data;
       if (updated?.id) {
-        set((state) => ({
-          statuses: state.statuses.map((s) =>
-            s.id === statusId ? { ...s, ...updated } : s,
-          ),
-        }));
+        set((state) => {
+          let viewerGroup = state.viewerGroup;
+          if (viewerGroup?.statuses?.some((s) => s.id === statusId)) {
+            viewerGroup = {
+              ...viewerGroup,
+              statuses: viewerGroup.statuses.map((s) =>
+                s.id === statusId ? { ...s, ...updated } : s,
+              ),
+            };
+          }
+          return {
+            statuses: state.statuses.map((s) =>
+              s.id === statusId ? { ...s, ...updated } : s,
+            ),
+            viewerGroup,
+          };
+        });
       }
     } catch (error) {
       console.error("Failed to mark status viewed:", error);
