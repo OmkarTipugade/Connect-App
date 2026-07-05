@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { persist, createJSONStorage } from "zustand/middleware";
 
 const useLayoutStore = create(
   persist(
@@ -7,11 +7,14 @@ const useLayoutStore = create(
       activeTab: "chats",
       selectedContact: null,
       setSelectedContact: (contact) => set({ selectedContact: contact }),
+      clearSelectedContact: () => set({ selectedContact: null }),
       setActiveTab: (tab) => set({ activeTab: tab }),
     }),
     {
       name: "layout-storage",
-      getStorage: () => localStorage,
+      storage: createJSONStorage(() => localStorage),
+      // Don't persist selected contact — avoids hydration races and stale selection
+      partialize: (state) => ({ activeTab: state.activeTab }),
     },
   ),
 );

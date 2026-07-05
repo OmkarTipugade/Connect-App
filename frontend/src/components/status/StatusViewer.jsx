@@ -8,6 +8,7 @@ import {
 } from "../../store/statusStore";
 import useUserStore from "../../store/UseUserStore";
 import useLayoutStore from "../../store/layoutStore";
+import { useChatStore } from "../../store/chatStore";
 import StatusProgressBar from "./StatusProgressBar";
 import formatTimestamp from "../../utils/formatTime";
 
@@ -15,6 +16,8 @@ const StatusViewer = () => {
   const navigate = useNavigate();
   const user = useUserStore((state) => state.user);
   const setSelectedContact = useLayoutStore((state) => state.setSelectedContact);
+  const setCurrentConversation = useChatStore((state) => state.setCurrentConversation);
+  const clearMessages = useChatStore((state) => state.clearMessages);
 
   const {
     viewerOpen,
@@ -102,6 +105,8 @@ const StatusViewer = () => {
       profilePicture: viewerGroup.profilePicture,
       conversation: null,
     });
+    clearMessages();
+    setCurrentConversation(null);
     closeViewer();
     navigate("/");
   };

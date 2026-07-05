@@ -1,21 +1,14 @@
 import { useEffect, useState } from "react";
 import useLayoutStore from "../store/layoutStore";
-import { useLocation } from "react-router-dom";
 import useThemeStore from "../store/themeStore";
 import Sidebar from "./Sidebar";
-import { AnimatePresence, motion } from "framer-motion";
 import ChatWindow from "../pages/chats/ChatWindow";
 
-const Layout = ({
-  children,
-  isThemeDialogOpen,
-  toggleThemeDialog,
-}) => {
+const Layout = ({ children, isThemeDialogOpen, toggleThemeDialog }) => {
   const selectedContact = useLayoutStore((state) => state.selectedContact);
   const setSelectedContact = useLayoutStore(
-    (state) => state.setSelectedContact
+    (state) => state.setSelectedContact,
   );
-  const location = useLocation();
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const { theme, setTheme } = useThemeStore();
 
@@ -25,46 +18,38 @@ const Layout = ({
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  const showChatList = !isMobile || !selectedContact;
+  const showChatWindow = !isMobile || Boolean(selectedContact);
+
   return (
     <div
-      className={`min-h-screen ${
+      className={`h-[100dvh] ${
         theme === "dark" ? "bg-[#111b21] text-white" : "bg-gray-200 text-black"
-      } flex relative`}
+      } flex relative overflow-hidden`}
     >
       {!isMobile && <Sidebar />}
 
-      <div className={`flex-1 flex overflow-hidden ${isMobile ? "flex-col" : ""}`}>
-        <AnimatePresence mode="wait">
-          {(!isMobile || !selectedContact) && (
-            <motion.div
-              key="chatlist"
-              initial={{ x: isMobile ? "-100%" : 0 }}
-              animate={{ x: 0 }}
-              exit={{ x: isMobile ? "-100%" : 0 }}
-              transition={{ type: "tween", duration: 0.3 }}
-              className={`w-full ${!isMobile ? "md:w-2/5" : "h-full pb-16"} overflow-y-auto`}
-            >
-              {children}
-            </motion.div>
-          )}
+      <div className="flex flex-1 min-w-0 overflow-hidden">
+        <div
+          className={`${
+            showChatList ? "flex" : "hidden"
+          } ${isMobile ? "w-full pb-16" : "w-2/5 max-w-md shrink-0"} flex-col overflow-hidden border-r ${
+            theme === "dark" ? "border-gray-700" : "border-gray-300"
+          }`}
+        >
+          {children}
+        </div>
 
-          {(!isMobile || selectedContact) && (
-            <motion.div
-              key="chatwindow"
-              initial={{ x: isMobile ? "100%" : 0 }}
-              animate={{ x: 0 }}
-              exit={{ x: isMobile ? "100%" : 0 }}
-              transition={{ type: "tween", duration: 0.3 }}
-              className="flex-1 h-full overflow-hidden"
-            >
-              <ChatWindow
-                selectedContact={selectedContact}
-                setSelectedContact={setSelectedContact}
-                isMobile={isMobile}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <div
+          className={`${
+            showChatWindow ? "flex" : "hidden"
+          } flex-1 min-w-0 flex-col overflow-hidden`}
+        >
+          <ChatWindow
+            setSelectedContact={setSelectedContact}
+            isMobile={isMobile}
+          />
+        </div>
       </div>
 
       {isMobile && <Sidebar />}

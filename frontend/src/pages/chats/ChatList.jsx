@@ -2,6 +2,7 @@ import { useState } from "react";
 import useThemeStore from "../../store/themeStore";
 import useUserStore from "../../store/UseUserStore";
 import useLayoutStore from "../../store/layoutStore";
+import { useChatStore } from "../../store/chatStore";
 import { FaPlus, FaSearch } from "react-icons/fa";
 import { motion } from "framer-motion";
 import formatTimestamp from "../../utils/formatTime";
@@ -13,6 +14,19 @@ const ChatList = ({ contacts }) => {
     (state) => state.setSelectedContact,
   );
   const selectedContact = useLayoutStore((state) => state.selectedContact);
+  const setCurrentConversation = useChatStore(
+    (state) => state.setCurrentConversation,
+  );
+  const clearMessages = useChatStore((state) => state.clearMessages);
+
+  const handleSelectContact = (contact) => {
+    setSelectedContact(contact);
+    if (contact?.conversation?.id) {
+      setCurrentConversation(contact.conversation.id);
+    } else {
+      clearMessages();
+    }
+  };
   const [searchTerms, setSearchTerms] = useState("");
   const filteredContacts = Array.isArray(contacts)
     ? contacts.filter((contact) =>
@@ -21,7 +35,7 @@ const ChatList = ({ contacts }) => {
     : [];
   return (
     <div
-      className={`w-full border-r h-screen ${
+      className={`w-full h-full flex flex-col border-r ${
         theme === "dark"
           ? "bg-[rgb(17,27,33)] border-gray-600"
           : "border-gray-200 bg-white"
@@ -38,7 +52,7 @@ const ChatList = ({ contacts }) => {
           <FaPlus />
         </button>
       </div>
-      <div className="p-2">
+      <div className="p-2 flex flex-col flex-1 min-h-0">
         <div className="relative">
           <FaSearch
             className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${
@@ -57,11 +71,11 @@ const ChatList = ({ contacts }) => {
             onChange={(e) => setSearchTerms(e.target.value)}
           />
         </div>
-        <div className="overflow-y-auto h-[calc(100vh-140px)] mt-3 pr-1">
+        <div className="overflow-y-auto flex-1 mt-3 pr-1">
           {filteredContacts.map((contact) => (
             <motion.div
               key={contact?.id}
-              onClick={() => setSelectedContact(contact)}
+              onClick={() => handleSelectContact(contact)}
               whileHover={{ scale: 1.01 }}
               className={`mx-2 mb-2 p-3 rounded-2xl flex items-center gap-3 cursor-pointer transition-all duration-200
     ${
