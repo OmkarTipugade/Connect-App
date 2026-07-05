@@ -3,7 +3,7 @@ const { sendOtpToPhoneNo } = require("../services/twilio.service");
 const { generateOTP } = require("../utils/otpGenerator");
 const { response } = require("../utils/responseHandler");
 const { generateToken } = require("../utils/tokenGenerator");
-const { authCookieOptions } = require("../utils/cookieOptions");
+const { authCookieOptions, clearAuthCookieOptions } = require("../utils/cookieOptions");
 const { verifyOtpForPhoneNo } = require("../services/twilio.service");
 const { uploadFileToCloudinary } = require("../config/cloudinary.config");
 const prisma = require("../prismaClient");
@@ -180,7 +180,7 @@ const updateProfile = async (req, res) => {
 
 const logout = (req, res) => {
   try {
-    res.cookie("auth_token", "", { expires: new Date(0) });
+    res.clearCookie("auth_token", clearAuthCookieOptions);
     return response(res, 200, "Logged out successfully");
   } catch (error) {
     console.error("Error in logout:", error);

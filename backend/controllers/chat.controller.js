@@ -90,6 +90,21 @@ const sendMessage = async (req, res) => {
       return response(res, 400, "Message content cannot be empty");
     }
 
+    if (replyToId) {
+      const replyToMessage = await prisma.message.findUnique({
+        where: { id: replyToId },
+        select: { id: true, conversationId: true },
+      });
+
+      if (!replyToMessage) {
+        return response(res, 400, "Reply message not found");
+      }
+
+      if (replyToMessage.conversationId !== conversation.id) {
+        return response(res, 400, "Reply message must belong to the same conversation");
+      }
+    }
+
     const message = await prisma.message.create({
       data: {
         conversationId: conversation.id,

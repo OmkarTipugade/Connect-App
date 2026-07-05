@@ -13,16 +13,22 @@ const getFrontendOrigin = () => {
     return DEFAULT_DEV_ORIGIN;
   }
 
-  console.warn(
-    "FRONTEND_URL is not set. CORS will reject cross-origin requests in production.",
+  throw new Error(
+    "FRONTEND_URL must be set in production. Refusing to start with open or disabled CORS.",
   );
-  return false;
 };
 
 const frontendOrigin = getFrontendOrigin();
 
 const corsOptions = {
-  origin: frontendOrigin,
+  origin(origin, callback) {
+    // Same-origin or non-browser requests (no Origin header)
+    if (!origin || origin === frontendOrigin) {
+      callback(null, true);
+      return;
+    }
+    callback(new Error("Not allowed by CORS"));
+  },
   credentials: true,
 };
 

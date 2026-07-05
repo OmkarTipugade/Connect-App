@@ -25,10 +25,12 @@ const App = () => {
   const user = useUserStore((state) => state.user);
   const setCurrentUser = useChatStore((state) => state.setCurrentUser);
   const initSocketListeners = useChatStore((state) => state.initSocketListeners);
+  const cleanupChatStore = useChatStore((state) => state.cleanup);
 
   useEffect(() => {
     if (!user?.id) {
       disconnectSocket();
+      cleanupChatStore();
       return;
     }
 
@@ -38,8 +40,9 @@ const App = () => {
 
     return () => {
       disconnectSocket();
+      cleanupChatStore();
     };
-  }, [user?.id, setCurrentUser, initSocketListeners]);
+  }, [user?.id, setCurrentUser, initSocketListeners, cleanupChatStore]);
 
   return (
     <>

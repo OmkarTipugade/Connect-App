@@ -71,14 +71,18 @@ const initializeSocket = (server) => {
         onlineUsers.set(userId, socket.id);
         socket.join(userId);
 
-        // Update user's isOnline status in DB
-        await prisma.user.update({
+        // Update user's isOnline status in DB (preserve lastSeen while online)
+        const user = await prisma.user.update({
           where: { id: userId },
-          data: { isOnline: true, lastSeen: new Date() },
+          data: { isOnline: true },
+          select: { lastSeen: true },
         });
 
-        // Notify all clients about the updated online users list
-        io.emit(actions.USER_STATUS_UPDATE, { userId, isOnline: true });
+        io.emit(actions.USER_STATUS_UPDATE, {
+          userId,
+          isOnline: true,
+          lastSeen: user?.lastSeen ?? null,
+        });
       } catch (error) {
         console.error("Error in USER_CONNECTED:", error);
       }
@@ -296,14 +300,17 @@ const initializeSocket = (server) => {
           typingUsers.delete(userId);
         }
 
-        // Update user's isOnline status in DB
-        await prisma.user.update({
+        const user = await prisma.user.update({
           where: { id: userId },
           data: { isOnline: false, lastSeen: new Date() },
+          select: { lastSeen: true },
         });
 
-        // Notify all clients about the updated online users list
-        io.emit(actions.USER_STATUS_UPDATE, { userId, isOnline: false });
+        io.emit(actions.USER_STATUS_UPDATE, {
+          userId,
+          isOnline: false,
+          lastSeen: user?.lastSeen ?? null,
+        });
 
         socket.leave(userId);
         console.log("Client disconnected", socket.id);

@@ -3,6 +3,13 @@ const { response } = require("../utils/responseHandler");
 const { actions } = require("../utils/actions");
 const prisma = require("../prismaClient");
 
+const statusViewedBySelect = {
+  userId: true,
+  username: true,
+  profilePicture: true,
+  viewedAt: true,
+};
+
 const createStatus = async (req, res) => {
   try {
     const { content, contentType } = req.body;
@@ -109,12 +116,7 @@ const getStatuses = async (req, res) => {
           },
         },
         viewedBy: {
-          select: {
-            userId: true,
-            username: true,
-            profilePicture: true,
-            viewedAt: true,
-          },
+          select: statusViewedBySelect,
         },
       },
       orderBy: {
@@ -164,7 +166,7 @@ const viewStatus = async (req, res) => {
       where: { id: storyId },
       include: {
         user: { select: { username: true, profilePicture: true } },
-        viewedBy: { select: { username: true, profilePicture: true } },
+        viewedBy: { select: statusViewedBySelect },
       },
     });
 

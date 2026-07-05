@@ -10,6 +10,18 @@ import {
 import { ACTIONS } from "../utils/actions";
 
 let listenersInitialized = false;
+let registeredSocket = null;
+
+const detachSocketListeners = (socket) => {
+  if (!socket) return;
+  socket.off(ACTIONS.RECEIVE_MESSAGE);
+  socket.off(ACTIONS.USER_TYPING);
+  socket.off(ACTIONS.MESSAGE_STATUS_UPDATED);
+  socket.off(ACTIONS.REACTION_UPDATE);
+  socket.off(ACTIONS.MESSAGE_DELETED);
+  socket.off(ACTIONS.USER_STATUS_UPDATE);
+  socket.off(ACTIONS.MESSAGE_EDITED);
+};
 
 export const useChatStore = create((set, get) => ({
   conversations: [],
@@ -28,17 +40,18 @@ export const useChatStore = create((set, get) => ({
 
   initSocketListeners: () => {
     const socket = getSocket();
-    if (!socket || listenersInitialized) return;
+    if (!socket) return;
+
+    if (listenersInitialized && registeredSocket === socket) return;
+
+    if (registeredSocket && registeredSocket !== socket) {
+      detachSocketListeners(registeredSocket);
+    }
 
     listenersInitialized = true;
+    registeredSocket = socket;
 
-    socket.off(ACTIONS.RECEIVE_MESSAGE);
-    socket.off(ACTIONS.USER_TYPING);
-    socket.off(ACTIONS.MESSAGE_STATUS_UPDATED);
-    socket.off(ACTIONS.REACTION_UPDATE);
-    socket.off(ACTIONS.MESSAGE_DELETED);
-    socket.off(ACTIONS.USER_STATUS_UPDATE);
-    socket.off(ACTIONS.MESSAGE_EDITED);
+    detachSocketListeners(socket);
 
     socket.on(ACTIONS.RECEIVE_MESSAGE, (payload) => {
       const message = payload?.message ?? payload;
@@ -102,7 +115,8 @@ export const useChatStore = create((set, get) => ({
         const existing = onlineUsers.get(userId) || {};
         onlineUsers.set(userId, {
           isOnline,
-          lastSeen: lastSeen ?? (isOnline ? null : existing.lastSeen),
+          lastSeen:
+            lastSeen !== undefined ? lastSeen : (existing.lastSeen ?? null),
         });
         return { onlineUsers };
       });
@@ -311,15 +325,9 @@ export const useChatStore = create((set, get) => ({
 
   cleanup: () => {
     listenersInitialized = false;
-    const socket = getSocket();
-    if (socket) {
-      socket.off(ACTIONS.RECEIVE_MESSAGE);
-      socket.off(ACTIONS.USER_TYPING);
-      socket.off(ACTIONS.MESSAGE_STATUS_UPDATED);
-      socket.off(ACTIONS.REACTION_UPDATE);
-      socket.off(ACTIONS.MESSAGE_DELETED);
-      socket.off(ACTIONS.USER_STATUS_UPDATE);
-    }
+    const socket = registeredSocket || getSocket();
+    detachSocketListeners(socket);
+    registeredSocket = null;
     set({
       conversations: [],
       currentConversation: null,

@@ -8,4 +8,11 @@ const authCookieOptions = {
   secure: isProduction,
 };
 
-module.exports = { authCookieOptions };
+const clearAuthCookieOptions = {
+  httpOnly: authCookieOptions.httpOnly,
+  path: authCookieOptions.path,
+  sameSite: authCookieOptions.sameSite,
+  secure: authCookieOptions.secure,
+};
+
+module.exports = { authCookieOptions, clearAuthCookieOptions };
