@@ -31,7 +31,7 @@ const updateUserProfile = async (profileData) => {
   try {
     const response = await axiosInstance.put(
       "/api/auth/update-profile",
-      profileData
+      profileData,
     );
     return response.data;
   } catch (error) {
@@ -42,12 +42,15 @@ const updateUserProfile = async (profileData) => {
 const checkAuthentication = async () => {
   try {
     const response = await axiosInstance.get("/api/auth/check-auth");
-    if (response.data.status === 'success') {
-      return { isAuthenticated: true, user: response?.data?.data };
-    } else if (response.data.status === 401) {
+    if (response.data.status === "success") {
+      const user = response.data.data?.user;
+      return { isAuthenticated: Boolean(user?.id), user };
+    }
+    return { isAuthenticated: false, user: null };
+  } catch (error) {
+    if (error.response?.status === 401) {
       return { isAuthenticated: false, user: null };
     }
-  } catch (error) {
     throw error.response?.data || error.message;
   }
 };

@@ -1,7 +1,8 @@
 const { Server } = require("socket.io");
-const cookie = require("cookie");
+const { parseCookie } = require("cookie");
 const { actions } = require("../utils/actions");
 const { verifyToken } = require("../utils/verifyToken");
+const { socketCorsOptions } = require("../config/cors.config");
 const prisma = require("../prismaClient");
 
 require("@dotenvx/dotenvx").config();
@@ -12,18 +13,14 @@ const onlineUsers = new Map();
 const typingUsers = new Map();
 
 const initializeSocket = (server) => {
-  const io = new Server(server, { 
-    cors: {
-      origin: process.env.FRONTEND_URL,
-      credentials: true,
-      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    },
+  const io = new Server(server, {
+    cors: socketCorsOptions,
     pingTimeout: 60000, // 60 seconds disconnect inactive users or sockets
   });
 
   // When new  socket connection is established
   io.on(actions.CONNECTION, (socket) => {
-    const cookies = cookie.parse(socket.handshake.headers.cookie || "");
+    const cookies = parseCookie(socket.handshake.headers.cookie || "");
     const decoded = verifyToken(cookies.auth_token);
 
     if (!decoded?.userID) {

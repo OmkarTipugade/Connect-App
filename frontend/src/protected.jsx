@@ -7,22 +7,33 @@ import Loader from "./utils/Loader.jsx";
 const ProtectedRoute = () => {
   const location = useLocation();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [isAuthed, setIsAuthed] = useState(false);
 
-  const { isAuthenticated, setUser, clearUser } = useUserStore();
+  const setUser = useUserStore((state) => state.setUser);
+  const clearUser = useUserStore((state) => state.clearUser);
 
   useEffect(() => {
+    const existingUserId = useUserStore.getState().user?.id;
+
     const verifyAuth = async () => {
       try {
         const response = await checkAuthentication();
 
-        if (response?.isAuthenticated) {
+        if (response?.isAuthenticated && response.user?.id) {
           setUser(response.user);
+          setIsAuthed(true);
         } else {
           clearUser();
+          setIsAuthed(false);
         }
       } catch (error) {
-        console.error(error);
-        clearUser();
+        console.error("Auth check failed:", error);
+        if (existingUserId) {
+          setIsAuthed(true);
+        } else {
+          clearUser();
+          setIsAuthed(false);
+        }
       } finally {
         setIsCheckingAuth(false);
       }
@@ -35,7 +46,7 @@ const ProtectedRoute = () => {
     return <Loader />;
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthed) {
     return <Navigate to="/user-login" state={{ from: location }} replace />;
   }
 
@@ -43,7 +54,9 @@ const ProtectedRoute = () => {
 };
 
 const PublicRoute = () => {
-  const isAuthenticated = useUserStore((state) => state.isAuthenticated);
+  const isAuthenticated = useUserStore(
+    (state) => state.isAuthenticated && Boolean(state.user?.id),
+  );
 
   if (isAuthenticated) {
     return <Navigate to="/" replace />;

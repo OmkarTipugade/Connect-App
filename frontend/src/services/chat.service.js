@@ -1,8 +1,11 @@
 import { io } from "socket.io-client";
 import useUserStore from "../store/UseUserStore";
 import { ACTIONS } from "../utils/actions";
+import { API_BASE_URL } from "./url.service";
 
 let socket = null;
+
+const getSocketUrl = () => API_BASE_URL || window.location.origin;
 
 export const initializeSocket = () => {
   if (socket?.connected) return socket;
@@ -13,9 +16,8 @@ export const initializeSocket = () => {
   }
 
   const user = useUserStore.getState().user;
-  const BACKEND_URL = import.meta.env.VITE_API_BASE_URL;
 
-  socket = io(BACKEND_URL, {
+  socket = io(getSocketUrl(), {
     withCredentials: true,
     transports: ["websocket", "polling"],
     reconnectionAttempts: 5,

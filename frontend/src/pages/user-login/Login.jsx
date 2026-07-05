@@ -111,8 +111,8 @@ const Login = () => {
         const user = response.data?.user;
         if (user?.username && user?.profilePicture) {
           setUser(user);
-          toast.success("Wellcome back on Connect");
-          navigate("/");
+          toast.success("Welcome back on Connect");
+          navigate("/", { replace: true });
           resetLoginState();
         } else {
           setStep(3);
@@ -153,7 +153,7 @@ const Login = () => {
         setUser(response.data.user);
       }
       toast.success("Welcome back on Connect 🎉");
-      navigate("/");
+      navigate("/", { replace: true });
       resetLoginState();
     } catch (error) {
       console.log("Error when update user profile", error?.message);

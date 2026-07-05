@@ -6,13 +6,10 @@ const bodyParser = require("body-parser");
 const http = require("http");
 const { initializeSocket } = require("./services/socket.service");
 const { apiLimiter } = require("./middleware/rateLimit.middleware");
+const { corsOptions } = require("./config/cors.config");
 require("@dotenvx/dotenvx").config();
 
 const app = express();
-const corsOptions = {
-  origin: process.env.FRONTEND_URL || process.env.FRONTED_URL,
-  credentials: true,
-};
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(cors(corsOptions));
@@ -39,7 +36,7 @@ app.use((err, req, res, next) => {
   res.status(500).json({ status: "error", message: "Internal server error" });
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 8000;
 
 app.get("/", (req, res) => {
   res.send("Connect chat API is running");

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { FaEdit, FaArrowLeft, FaEnvelope, FaPhone } from "react-icons/fa";
+import { FaEdit, FaArrowLeft, FaEnvelope, FaPhone, FaUser } from "react-icons/fa";
 import AppShell from "./AppShell";
 import EditProfileModal from "./profile/EditProfileModal";
 import ProfilePictureViewer from "./profile/ProfilePictureViewer";

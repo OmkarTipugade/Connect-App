@@ -1,10 +1,11 @@
-import axios from 'axios';
+import axios from "axios";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+/** In dev, use Vite proxy (same origin). In prod, set VITE_API_BASE_URL. */
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
 const axiosInstance = axios.create({
-    baseURL: API_BASE_URL,
-    withCredentials: true, // send cookies with auth_token
-})
+  baseURL: API_BASE_URL,
+  withCredentials: true,
+});
 
 export default axiosInstance;

@@ -18,11 +18,7 @@ const AboutPage = lazy(() => import("./pages/settings/AboutPage"));
 const PrivacyPage = lazy(() => import("./pages/settings/PrivacyPage"));
 const StarredMessagesPage = lazy(() => import("./pages/settings/StarredMessagesPage"));
 
-const PageLoader = () => (
-  <div className="min-h-screen flex items-center justify-center bg-[#111b21]">
-    <Loader />
-  </div>
-);
+const PageLoader = () => <Loader />;
 
 const App = () => {
   useThemeInit();
