@@ -36,15 +36,28 @@ const StatusViewer = () => {
   const [viewersOpen, setViewersOpen] = useState(false);
   const timerRef = useRef(null);
   const startRef = useRef(Date.now());
+  const progressRef = useRef(0);
+  const videoRef = useRef(null);
   const viewedRef = useRef(new Set());
 
   const statuses = viewerGroup?.statuses ?? [];
   const current = statuses[viewerIndex];
   const isOwn = viewerGroup?.userId === user?.id;
+  const isPlaybackPaused = paused || viewersOpen;
+  const mediaType = (current?.contentType || "").toUpperCase();
 
   useEffect(() => {
+    progressRef.current = progress;
+  }, [progress]);
+
+  useEffect(() => {
+    if (!viewerOpen || !current?.id) return;
     setViewersOpen(false);
-  }, [viewerIndex, current?.id]);
+    setPaused(false);
+    setProgress(0);
+    progressRef.current = 0;
+    startRef.current = Date.now();
+  }, [viewerOpen, viewerIndex, current?.id]);
 
   useEffect(() => {
     if (!viewerOpen || !current?.id) return;
@@ -56,15 +69,15 @@ const StatusViewer = () => {
   }, [viewerOpen, current?.id, isOwn, markStatusViewed]);
 
   useEffect(() => {
-    if (!viewerOpen || paused || viewersOpen || !current) return;
+    if (!viewerOpen || isPlaybackPaused || !current) return;
 
-    startRef.current = Date.now();
-    setProgress(0);
+    startRef.current = Date.now() - progressRef.current * STATUS_DURATION_MS;
 
     timerRef.current = setInterval(() => {
       const elapsed = Date.now() - startRef.current;
       const p = Math.min(elapsed / STATUS_DURATION_MS, 1);
       setProgress(p);
+      progressRef.current = p;
 
       if (p >= 1) {
         if (viewerIndex < statuses.length - 1) {
@@ -76,7 +89,27 @@ const StatusViewer = () => {
     }, 50);
 
     return () => clearInterval(timerRef.current);
-  }, [viewerOpen, viewerIndex, paused, viewersOpen, current?.id, statuses.length, setViewerIndex, closeViewer]);
+  }, [
+    viewerOpen,
+    viewerIndex,
+    isPlaybackPaused,
+    current?.id,
+    statuses.length,
+    setViewerIndex,
+    closeViewer,
+  ]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || mediaType !== "VIDEO") return;
+
+    if (isPlaybackPaused) {
+      video.pause();
+      return;
+    }
+
+    video.play().catch(() => {});
+  }, [isPlaybackPaused, current?.id, mediaType]);
 
   const goNext = () => {
     if (viewerIndex < statuses.length - 1) {
@@ -118,7 +151,24 @@ const StatusViewer = () => {
     navigate("/");
   };
 
+  const openViewers = (e) => {
+    e?.stopPropagation?.();
+    setPaused(true);
+    setViewersOpen(true);
+  };
+
+  const closeViewers = (e) => {
+    e?.stopPropagation?.();
+    setViewersOpen(false);
+    setPaused(false);
+  };
+
   const handleTap = (e) => {
+    if (viewersOpen) {
+      closeViewers();
+      return;
+    }
+
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const third = rect.width / 3;
@@ -130,16 +180,6 @@ const StatusViewer = () => {
 
   const viewerCount = current.viewedBy?.length ?? 0;
   const viewers = current.viewedBy ?? [];
-
-  const openViewers = () => {
-    setPaused(true);
-    setViewersOpen(true);
-  };
-
-  const closeViewers = () => {
-    setViewersOpen(false);
-    setPaused(false);
-  };
 
   return createPortal(
     <AnimatePresence>
@@ -154,10 +194,10 @@ const StatusViewer = () => {
           total={statuses.length}
           currentIndex={viewerIndex}
           progress={progress}
-          paused={paused}
+          paused={isPlaybackPaused}
         />
 
-        <div className="flex items-center justify-between px-4 py-2 text-white">
+        <div className="shrink-0 flex items-center justify-between px-4 py-2 text-white relative z-20">
           <div className="flex items-center gap-3">
             <img
               src={viewerGroup.profilePicture || "/default-avatar.png"}
@@ -194,15 +234,15 @@ const StatusViewer = () => {
         </div>
 
         <div
-          className="flex-1 relative flex items-center justify-center select-none"
+          className="flex-1 min-h-0 overflow-hidden relative flex items-center justify-center select-none z-0"
           onClick={handleTap}
-          onMouseDown={() => setPaused(true)}
-          onMouseUp={() => setPaused(false)}
-          onMouseLeave={() => setPaused(false)}
-          onTouchStart={() => setPaused(true)}
-          onTouchEnd={() => setPaused(false)}
+          onMouseDown={() => !viewersOpen && setPaused(true)}
+          onMouseUp={() => !viewersOpen && setPaused(false)}
+          onMouseLeave={() => !viewersOpen && setPaused(false)}
+          onTouchStart={() => !viewersOpen && setPaused(true)}
+          onTouchEnd={() => !viewersOpen && setPaused(false)}
         >
-          {current.contentType === "TEXT" && (
+          {mediaType === "TEXT" && (
             <div className="w-full h-full flex items-center justify-center p-8 bg-linear-to-br from-red-600 via-purple-700 to-indigo-800">
               <p className="text-white text-2xl md:text-3xl text-center font-medium leading-relaxed max-w-lg">
                 {current.content}
@@ -210,18 +250,19 @@ const StatusViewer = () => {
             </div>
           )}
 
-          {current.contentType === "IMAGE" && (
+          {mediaType === "IMAGE" && (
             <img
               src={current.content}
               alt="Status"
-              className="max-h-full max-w-full object-contain"
+              className="max-h-full max-w-full object-contain pointer-events-none"
             />
           )}
 
-          {current.contentType === "VIDEO" && (
+          {mediaType === "VIDEO" && (
             <video
+              ref={videoRef}
               src={current.content}
-              className="max-h-full max-w-full object-contain"
+              className="max-h-full max-w-full object-contain pointer-events-none"
               autoPlay
               muted
               playsInline
@@ -229,7 +270,7 @@ const StatusViewer = () => {
             />
           )}
 
-          {!["TEXT", "IMAGE", "VIDEO"].includes(current.contentType) && (
+          {!["TEXT", "IMAGE", "VIDEO"].includes(mediaType) && (
             <div className="w-full h-full flex items-center justify-center p-8">
               <p className="text-white/80 text-center">
                 {current.content || "Unable to display this status"}
@@ -238,18 +279,22 @@ const StatusViewer = () => {
           )}
         </div>
 
-        <div className="px-4 py-3 flex items-center justify-between text-white">
+        <div className="shrink-0 relative z-20 px-4 py-3 flex items-center justify-between text-white">
           {isOwn ? (
             <button
               type="button"
-              onClick={openViewers}
-              className="flex items-center gap-2 px-3 py-2 rounded-full bg-white/10 hover:bg-white/20 transition text-sm"
+              onClick={viewersOpen ? closeViewers : openViewers}
+              className="relative z-20 flex items-center gap-2 px-3 py-2 rounded-full bg-white/10 hover:bg-white/20 transition text-sm"
             >
               <FaEye className="w-3.5 h-3.5" />
               <span>
                 {viewerCount} view{viewerCount !== 1 ? "s" : ""}
               </span>
-              <FaChevronUp className="w-3 h-3 opacity-70" />
+              <FaChevronUp
+                className={`w-3 h-3 opacity-70 transition-transform duration-200 ${
+                  viewersOpen ? "rotate-180" : ""
+                }`}
+              />
             </button>
           ) : (
             <button

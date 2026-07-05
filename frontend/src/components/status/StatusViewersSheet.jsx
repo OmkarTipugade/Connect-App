@@ -1,7 +1,22 @@
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaTimes, FaEye } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import formatTimestamp from "../../utils/formatTime";
+
+const getViewerId = (viewer) =>
+  viewer?.userId || viewer?.user?.id || viewer?.id;
+
+const getViewerName = (viewer) =>
+  viewer?.username ||
+  viewer?.user?.username ||
+  viewer?.user?.phoneSuffix ||
+  "User";
+
+const getViewerPhoto = (viewer) =>
+  viewer?.profilePicture ||
+  viewer?.user?.profilePicture ||
+  "/default-avatar.png";
 
 const StatusViewersSheet = ({ open, onClose, viewers = [] }) => {
   const navigate = useNavigate();
@@ -11,21 +26,25 @@ const StatusViewersSheet = ({ open, onClose, viewers = [] }) => {
   );
 
   const handleViewerClick = (viewer) => {
-    if (!viewer?.userId) return;
+    const viewerId = getViewerId(viewer);
+    if (!viewerId) return;
     onClose();
-    navigate(`/user/${viewer.userId}`);
+    navigate(`/user/${viewerId}`);
   };
 
-  return (
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     <AnimatePresence>
       {open && (
         <>
+          {/* Tap the status area above the sheet to dismiss */}
           <motion.button
             type="button"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/40 z-[60]"
+            className="fixed inset-x-0 top-0 bottom-[55vh] z-200 cursor-default"
             aria-label="Close viewers list"
             onClick={onClose}
           />
@@ -35,14 +54,16 @@ const StatusViewersSheet = ({ open, onClose, viewers = [] }) => {
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 28, stiffness: 320 }}
-            className="fixed bottom-0 left-0 right-0 z-[61] bg-[#1f2c34] rounded-t-2xl max-h-[55vh] flex flex-col shadow-2xl"
+            className="fixed bottom-0 left-0 right-0 z-201 bg-[#1f2c34] rounded-t-2xl max-h-[55vh] flex flex-col shadow-2xl"
           >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+            <div className="flex justify-center pt-2 pb-1">
+              <div className="w-10 h-1 rounded-full bg-white/25" />
+            </div>
+
+            <div className="flex items-center justify-between px-4 py-2 border-b border-white/10">
               <div className="flex items-center gap-2 text-white">
                 <FaEye className="w-4 h-4 text-white/70" />
-                <h3 className="font-medium">
-                  Viewed by {sorted.length}
-                </h3>
+                <h3 className="font-medium">Viewed by {sorted.length}</h3>
               </div>
               <button
                 type="button"
@@ -61,20 +82,20 @@ const StatusViewersSheet = ({ open, onClose, viewers = [] }) => {
                 </li>
               ) : (
                 sorted.map((viewer) => (
-                  <li key={viewer.userId || viewer.id}>
+                  <li key={getViewerId(viewer)}>
                     <button
                       type="button"
                       onClick={() => handleViewerClick(viewer)}
                       className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition text-left"
                     >
                       <img
-                        src={viewer.profilePicture || "/default-avatar.png"}
+                        src={getViewerPhoto(viewer)}
                         alt=""
                         className="w-11 h-11 rounded-full object-cover shrink-0"
                       />
                       <div className="flex-1 min-w-0">
                         <p className="text-white font-medium truncate">
-                          {viewer.username || "User"}
+                          {getViewerName(viewer)}
                         </p>
                         {viewer.viewedAt && (
                           <p className="text-xs text-white/50 mt-0.5">
@@ -90,7 +111,8 @@ const StatusViewersSheet = ({ open, onClose, viewers = [] }) => {
           </motion.div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 };
 
